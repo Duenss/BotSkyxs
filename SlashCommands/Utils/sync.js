@@ -4,6 +4,7 @@ const {
   TextDisplayBuilder,
   MessageFlags,
   PermissionsBitField,
+  EmbedBuilder,
 } = require("discord.js");
 const fs = require("fs");
 const { execSync } = require("child_process");
@@ -144,13 +145,21 @@ module.exports = {
         .setAccentColor(0x2ecc71)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `✅ Sincronización completada\n📊 Comandos: ${commands.length}\n🎯 Alcance: ${scope === "guild" ? "Este servidor" : "Todos los servidores"}\n${failed > 0 ? `⚠️ Errores: ${failed}` : ""}\n\n📋 **Última actualización:**\n${lastCommitInfo}`
+            `✅ Sincronización completada\n📊 Comandos: ${commands.length}\n🎯 Alcance: ${scope === "guild" ? "Este servidor" : "Todos los servidores"}\n${failed > 0 ? `⚠️ Errores: ${failed}` : ""}`
           )
         );
+
+      // Crear embed para el último commit
+      const commitEmbed = new EmbedBuilder()
+        .setColor(0x3498db)
+        .setTitle("📋 Última Actualización")
+        .setDescription(lastCommitInfo)
+        .setFooter({ text: "Synchronized" });
 
       await interaction.editReply({
         flags: MessageFlags.IsComponentsV2,
         components: [successContainer],
+        embeds: [commitEmbed],
       });
     } catch (error) {
       console.error("Error en sincronización:", error);
