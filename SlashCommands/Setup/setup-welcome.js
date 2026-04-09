@@ -38,6 +38,18 @@ module.exports = {
         )
         .addStringOption((option) =>
           option
+            .setName("thumbnail")
+            .setDescription("URL de la miniatura del embed (thumbnail).")
+            .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
+            .setName("image")
+            .setDescription("URL de la imagen principal del embed (imagen/gif/mp4).")
+            .setRequired(false),
+        )
+        .addStringOption((option) =>
+          option
             .setName("color")
             .setDescription("Color del embed en formato hex (ej: #00ff00).")
             .setRequired(false),
@@ -91,6 +103,8 @@ module.exports = {
       const title = interaction.options.getString("title");
       const description = interaction.options.getString("description");
       const color = interaction.options.getString("color") || "#00ff00";
+      const thumbnail = interaction.options.getString("thumbnail") || null;
+      const image = interaction.options.getString("image") || null;
       const footer = interaction.options.getString("footer") || null;
 
       setData("welcome", interaction.guild.id, {
@@ -100,6 +114,8 @@ module.exports = {
         description,
         color,
         footer,
+        thumbnail,
+        image,
       });
 
       const container = new ContainerBuilder()
@@ -144,12 +160,14 @@ module.exports = {
       const description = config.description || "No configurado";
       const color = config.color || "No configurado";
       const footer = config.footer || "No configurado";
+      const thumbnail = config.thumbnail || "No configurado";
+      const image = config.image || "No configurado";
 
       const container = new ContainerBuilder()
         .setAccentColor(0x3498db)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `## 📊 Estado del Sistema de Bienvenida\n\n**Estado:** ${status}\n**Canal:** ${channel}\n**Título:** ${title}\n**Descripción:** ${description}\n**Color:** ${color}\n**Footer:** ${footer}`,
+            `## 📊 Estado del Sistema de Bienvenida\n\n**Estado:** ${status}\n**Canal:** ${channel}\n**Título:** ${title}\n**Descripción:** ${description}\n**Color:** ${color}\n**Footer:** ${footer}\n**Thumbnail:** ${thumbnail}\n**Imagen:** ${image}`,
           ),
         );
 

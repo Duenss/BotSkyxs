@@ -75,6 +75,14 @@ module.exports = {
           embed.setFooter({ text: welcomeConfig.footer });
         }
 
+        if (welcomeConfig.thumbnail) {
+          embed.setThumbnail(welcomeConfig.thumbnail);
+        }
+
+        if (welcomeConfig.image) {
+          embed.setImage(welcomeConfig.image);
+        }
+
         await welcomeChannel
           .send({
             embeds: [embed],

@@ -76,14 +76,16 @@ module.exports = {
       // Sincronizar en este servidor (evita duplicados con globales)
       await interaction.guild.commands.set(commands);
 
-      // Obtener última hora de actualización
-      let lastUpdate = "N/A";
+      // Obtener última hora de actualización solo si git está disponible
+      let lastUpdate = "No disponible";
       try {
-        const commitDate = execSync("git log -1 --format=%ai", { 
+        execSync("git --version", { stdio: "ignore", cwd: process.cwd() });
+
+        const commitDate = execSync("git log -1 --format=%ai", {
           encoding: "utf-8",
-          cwd: process.cwd()
+          cwd: process.cwd(),
         }).trim();
-        
+
         if (commitDate) {
           const date = new Date(commitDate);
           lastUpdate = date.toLocaleString("es-ES", {
@@ -96,7 +98,7 @@ module.exports = {
           });
         }
       } catch (error) {
-        console.error("Error al obtener última actualización:", error.message);
+        // Git no está instalado o no se puede obtener la fecha del último commit.
       }
 
       const successEmbed = new EmbedBuilder()
