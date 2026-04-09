@@ -17,11 +17,10 @@ module.exports = {
       subcommand
         .setName("set-channel")
         .setDescription("Establece el canal y configura el embed de bienvenida.")
-        .addChannelOption((option) =>
+        .addStringOption((option) =>
           option
-            .setName("channel")
-            .setDescription("Canal donde se enviarán los mensajes de bienvenida.")
-            .addChannelTypes(ChannelType.GuildText)
+            .setName("channel_id")
+            .setDescription("ID del canal donde se enviarán los mensajes de bienvenida.")
             .setRequired(true),
         )
         .addStringOption((option) =>
@@ -99,13 +98,22 @@ module.exports = {
     const config = getData("welcome", interaction.guild.id) || {};
 
     if (subcommand === "set-channel") {
-      const channel = interaction.options.getChannel("channel");
+      const channelId = interaction.options.getString("channel_id");
       const title = interaction.options.getString("title");
       const description = interaction.options.getString("description");
       const color = interaction.options.getString("color") || "#00ff00";
       const thumbnail = interaction.options.getString("thumbnail") || null;
       const image = interaction.options.getString("image") || null;
       const footer = interaction.options.getString("footer") || null;
+      const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+
+      if (!channel || channel.type !== ChannelType.GuildText) {
+        return interaction.reply({
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+          content: "⚠️ El ID de canal de bienvenida no es válido o no es un canal de texto.",
+          allowedMentions: { repliedUser: false },
+        });
+      }
 
       setData("welcome", interaction.guild.id, {
         enabled: true,
@@ -122,7 +130,7 @@ module.exports = {
         .setAccentColor(0x2ecc71)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `✅ Sistema de bienvenida configurado. Los mensajes se enviarán en ${channel}.`,
+            `✅ Sistema de bienvenida configurado. Los mensajes se enviarán en <#${channel.id}>.`,
           ),
         );
 

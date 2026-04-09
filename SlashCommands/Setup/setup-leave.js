@@ -17,11 +17,10 @@ module.exports = {
       subcommand
         .setName("set-channel")
         .setDescription("Establece el canal y configura el embed de despedida.")
-        .addChannelOption((option) =>
+        .addStringOption((option) =>
           option
-            .setName("channel")
-            .setDescription("Canal donde se enviarán los mensajes de despedida.")
-            .addChannelTypes(ChannelType.GuildText)
+            .setName("channel_id")
+            .setDescription("ID del canal donde se enviarán los mensajes de despedida.")
             .setRequired(true),
         )
         .addStringOption((option) =>
@@ -87,11 +86,20 @@ module.exports = {
     const config = getData("leave", interaction.guild.id) || {};
 
     if (subcommand === "set-channel") {
-      const channel = interaction.options.getChannel("channel");
+      const channelId = interaction.options.getString("channel_id");
       const title = interaction.options.getString("title");
       const description = interaction.options.getString("description");
       const color = interaction.options.getString("color") || "#ff0000";
       const footer = interaction.options.getString("footer") || null;
+      const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+
+      if (!channel || channel.type !== ChannelType.GuildText) {
+        return interaction.reply({
+          flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+          content: "⚠️ El ID de canal de despedida no es válido o no es un canal de texto.",
+          allowedMentions: { repliedUser: false },
+        });
+      }
 
       setData("leave", interaction.guild.id, {
         enabled: true,
@@ -106,7 +114,7 @@ module.exports = {
         .setAccentColor(0x2ecc71)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `✅ Sistema de despedida configurado. Los mensajes se enviarán en ${channel}.`,
+            `✅ Sistema de despedida configurado. Los mensajes se enviarán en <#${channel.id}>.`,
           ),
         );
 

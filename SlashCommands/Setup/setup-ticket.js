@@ -16,12 +16,11 @@ module.exports = {
   data: new SlashCommandBuilder()
     .setName("setup-ticket")
     .setDescription("Crea un sistema de tickets bonito con botón interactivo.")
-    .addChannelOption((option) =>
+    .addStringOption((option) =>
       option
-        .setName("channel")
-        .setDescription("Canal donde se publicará el panel de tickets.")
-        .addChannelTypes(ChannelType.GuildText)
-        .setRequired(false),
+        .setName("channel_id")
+        .setDescription("ID del canal donde se publicará el panel de tickets.")
+        .setRequired(true),
     )
     .setContexts(0)
     .setIntegrationTypes(0),
@@ -48,8 +47,24 @@ module.exports = {
     }
 
     const guild = interaction.guild;
-    const targetChannel =
-      interaction.options.getChannel("channel") || interaction.channel;
+    const channelId = interaction.options.getString("channel_id");
+    const targetChannel = await guild.channels.fetch(channelId).catch(() => null);
+
+    if (!targetChannel || targetChannel.type !== ChannelType.GuildText) {
+      const container = new ContainerBuilder()
+        .setAccentColor(0xff0000)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(
+            "⚠️ El ID de canal de tickets no es válido o no es un canal de texto.",
+          ),
+        );
+
+      return interaction.reply({
+        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+        components: [container],
+        allowedMentions: { repliedUser: false },
+      });
+    }
 
     let category = guild.channels.cache.find(
       (channel) =>
