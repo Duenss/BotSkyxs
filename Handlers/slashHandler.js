@@ -19,7 +19,18 @@ module.exports = {
       }
     }
 
+    // Sincronizar comandos globales
     await client.application.commands.set(commands);
+
+    // Sincronizar en todos los servidores donde el bot está presente
+    // Esto permite actualización inmediata sin necesidad de reinvitar
+    for (const guild of client.guilds.cache.values()) {
+      try {
+        await guild.commands.set(commands);
+      } catch (error) {
+        console.error(`Error al sincronizar comandos en ${guild.name}:`.red, error);
+      }
+    }
 
     const commandNames = commands.map((cmd) => cmd.name).join(", ");
     console.info(
