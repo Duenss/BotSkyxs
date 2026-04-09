@@ -15,25 +15,10 @@ module.exports = {
 
     const estados = [
       {
-        name: "𝑨𝒔𝒔𝒊𝒔𝒕𝒊𝒏𝒈 𝑪𝒍𝒊𝒆𝒏𝒕𝒔",
+        name: "Holi Boli soy un discord creado por @JvampaRD, estoy listo para ayudarte | skyxsenterprice.netlify.app",
         type: ActivityType.Playing,
         status: "online",
       },
-      /* {
-        name: "Aldas Videos",
-        type: ActivityType.Playing,
-        status: "online",
-      },
-      {
-        name: "Bot Tutorial",
-        type: ActivityType.Playing,
-        status: "online",
-      },
-      {
-        name: "DiscordJS",
-        type: ActivityType.Playing,
-        status: "online",
-      }, */
     ];
 
     let i = 0;
