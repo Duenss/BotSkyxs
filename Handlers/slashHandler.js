@@ -14,13 +14,17 @@ module.exports = {
         const command = require(`../SlashCommands/${category}/${file}`);
 
         client.slashCommands.set(command.data.name, command);
-
         commands.push(command.data.toJSON());
       }
     }
 
-    // Sincronizar solo globalmente (esto aplica en todos los servidores automáticamente)
-    await client.application.commands.set(commands);
+    // Eliminar comandos globales para evitar duplicados con comandos por servidor
+    await client.application.commands.set([]);
+
+    // Registrar comandos en cada servidor donde el bot ya esté presente
+    for (const guild of client.guilds.cache.values()) {
+      await guild.commands.set(commands);
+    }
 
     const commandNames = commands.map((cmd) => cmd.name).join(", ");
     console.info(
