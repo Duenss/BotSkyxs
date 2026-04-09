@@ -99,10 +99,12 @@ module.exports = {
           .filter((file) => file.endsWith(".js"));
 
         for (const file of files) {
-          // Limpiar el cache para obtener la versión más reciente
-          delete require.cache[require.resolve(`../${category}/${file}`)];
-          const command = require(`../${category}/${file}`);
-          commands.push(command.data.toJSON());
+          try {
+            const command = require(`../${category}/${file}`);
+            commands.push(command.data.toJSON());
+          } catch (loadError) {
+            console.error(`Error cargando ${file}:`, loadError);
+          }
         }
       }
 
@@ -119,25 +121,13 @@ module.exports = {
           failed++;
         }
       } else if (scope === "all") {
-        // Sincronizar en todos los servidores + globalmente
-        // Globalmente
+        // Sincronizar globalmente
         try {
           await interaction.client.application.commands.set(commands);
-          synced += commands.length;
+          synced = commands.length;
         } catch (error) {
           console.error("Error al sincronizar globalmente:", error);
           failed++;
-        }
-
-        // En cada servidor
-        for (const guild of interaction.client.guilds.cache.values()) {
-          try {
-            await guild.commands.set(commands);
-            synced += commands.length;
-          } catch (error) {
-            console.error(`Error en ${guild.name}:`, error);
-            failed++;
-          }
         }
       }
 
