@@ -69,15 +69,16 @@ module.exports = {
       
       console.log(`[guildMemberAdd WELCOME] ✅ Canal encontrado: ${welcomeChannel.name}`);
       
+      const userDisplay = member.user.username;
       const embed = new EmbedBuilder()
         .setTitle(
           welcomeConfig.title
-            .replace("{user}", member.user.username)
+            .replace("{user}", userDisplay)
             .replace("{guild}", member.guild.name)
         )
         .setDescription(
           welcomeConfig.description
-            .replace("{user}", `<@${member.id}>`)
+            .replace("{user}", userDisplay)
             .replace("{guild}", member.guild.name)
             .replace("{membercount}", member.guild.memberCount)
         )
