@@ -48,7 +48,7 @@ module.exports = {
           .send({
             flags: MessageFlags.IsComponentsV2,
             components: [container],
-            allowedMentions: { repliedUser: false },
+            allowedMentions: { parse: ["users"], repliedUser: false },
           })
           .catch(() => null);
       }
@@ -99,7 +99,7 @@ module.exports = {
       await welcomeChannel
         .send({
           embeds: [embed],
-          allowedMentions: { repliedUser: false },
+          allowedMentions: { parse: ["users"], repliedUser: false },
         })
         .then(() => console.log(`[guildMemberAdd WELCOME] ✅ Mensaje de bienvenida enviado`))
         .catch((error) => console.log(`[guildMemberAdd WELCOME] ❌ Error al enviar: ${error.message}`));
