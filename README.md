@@ -108,7 +108,7 @@ Implementación de un sistema de auditoría integral utilizando una base de dato
 Organización profesional de archivos para mantener el código limpio y escalable:
 
 ```javascript
-📦 ALDA-TUTORIAL-2026
+📦 @JvampaRD-2026
  ┣ 📂 .github                  # Carpeta de configuración de GitHub
  ┃ ┣ 📂 ISSUE_TEMPLATE         # Plantillas para reportes de errores
  ┃ ┃ ┣ 📜 bug_report.md
