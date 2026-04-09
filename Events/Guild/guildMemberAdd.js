@@ -11,61 +11,50 @@ module.exports = {
   async execute(member, client) {
     console.log(`[guildMemberAdd] Nuevo miembro: ${member.user.tag} en ${member.guild.name}`);
     
-    const config = getData("logs", member.guild.id);
-    if (!config || !config.logChannelId) {
-      console.log(`[guildMemberAdd] Sin config de logs`);
-    }
-
-    if (config && config.logChannelId) {
-      const logChannel = member.guild.channels.cache.get(config.logChannelId);
-      if (!logChannel) {
-        console.log(`[guildMemberAdd] Canal de logs no encontrado`);
-      }
-    } else {
-      console.log(`[guildMemberAdd] Sin logChannelId configurado`);
-      return;
-    }
-
-    const logChannel = member.guild.channels.cache.get(config.logChannelId);
-    if (!logChannel) return;
-
-    const container = new ContainerBuilder()
-      .setAccentColor(0x2ecc71)
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent("## ✅ Miembro Unido al Servidor"),
-      )
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `Se ha unido un nuevo miembro al servidor.
+    // PARTE 1: Enviar log si está configurado (OPCIONAL)
+    const logsConfig = getData("logs", member.guild.id);
+    if (logsConfig && logsConfig.logChannelId) {
+      const logChannel = member.guild.channels.cache.get(logsConfig.logChannelId);
+      if (logChannel) {
+        const container = new ContainerBuilder()
+          .setAccentColor(0x2ecc71)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent("## ✅ Miembro Unido al Servidor"),
+          )
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `Se ha unido un nuevo miembro al servidor.
 
 ` +
-            `**👤 Usuario:** <@${member.id}> (${member.user.tag})
+                `**👤 Usuario:** <@${member.id}> (${member.user.tag})
 ` +
-            `**🆔 ID:** \`${member.id}\`
+                `**🆔 ID:** \`${member.id}\`
 ` +
-            `**🕒 Cuenta creada:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:F> (<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>)
+                `**🕒 Cuenta creada:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:F> (<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>)
 ` +
-            `**📌 Miembro número:** \`#${member.guild.memberCount}\`
+                `**📌 Miembro número:** \`#${member.guild.memberCount}\`
 `,
-        ),
-      )
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `⏱️ **Fecha de ingreso:** <t:${Math.floor(Date.now() / 1000)}:F> (<t:${Math.floor(Date.now() / 1000)}:R>)`,
-        ),
-      );
+            ),
+          )
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `⏱️ **Fecha de ingreso:** <t:${Math.floor(Date.now() / 1000)}:F> (<t:${Math.floor(Date.now() / 1000)}:R>)`,
+            ),
+          );
 
-    await logChannel
-      .send({
-        flags: MessageFlags.IsComponentsV2,
-        components: [container],
-        allowedMentions: { repliedUser: false },
-      })
-      .catch(() => null);
+        await logChannel
+          .send({
+            flags: MessageFlags.IsComponentsV2,
+            components: [container],
+            allowedMentions: { repliedUser: false },
+          })
+          .catch(() => null);
+      }
+    }
 
-    // Send welcome embed
+    // PARTE 2: Enviar mensaje de bienvenida si está configurado (INDEPENDIENTE)
     const welcomeConfig = getData("welcome", member.guild.id);
     console.log(`[guildMemberAdd WELCOME] Config obtenida:`, welcomeConfig);
     
@@ -80,42 +69,40 @@ module.exports = {
       
       console.log(`[guildMemberAdd WELCOME] ✅ Canal encontrado: ${welcomeChannel.name}`);
       
-      if (welcomeChannel) {
-        const embed = new EmbedBuilder()
-          .setTitle(
-            welcomeConfig.title
-              .replace("{user}", member.user.username)
-              .replace("{guild}", member.guild.name)
-          )
-          .setDescription(
-            welcomeConfig.description
-              .replace("{user}", `<@${member.id}>`)
-              .replace("{guild}", member.guild.name)
-              .replace("{membercount}", member.guild.memberCount)
-          )
-          .setColor(parseInt(welcomeConfig.color.replace('#', ''), 16) || 0x00ff00)
-          .setTimestamp();
+      const embed = new EmbedBuilder()
+        .setTitle(
+          welcomeConfig.title
+            .replace("{user}", member.user.username)
+            .replace("{guild}", member.guild.name)
+        )
+        .setDescription(
+          welcomeConfig.description
+            .replace("{user}", `<@${member.id}>`)
+            .replace("{guild}", member.guild.name)
+            .replace("{membercount}", member.guild.memberCount)
+        )
+        .setColor(parseInt(welcomeConfig.color.replace('#', ''), 16) || 0x00ff00)
+        .setTimestamp();
 
-        if (welcomeConfig.footer) {
-          embed.setFooter({ text: welcomeConfig.footer });
-        }
-
-        if (welcomeConfig.thumbnail) {
-          embed.setThumbnail(welcomeConfig.thumbnail);
-        }
-
-        if (welcomeConfig.image) {
-          embed.setImage(welcomeConfig.image);
-        }
-
-        await welcomeChannel
-          .send({
-            embeds: [embed],
-            allowedMentions: { repliedUser: false },
-          })
-          .then(() => console.log(`[guildMemberAdd WELCOME] ✅ Mensaje enviado`))
-          .catch((error) => console.log(`[guildMemberAdd WELCOME] ❌ Error al enviar: ${error.message}`));
+      if (welcomeConfig.footer) {
+        embed.setFooter({ text: welcomeConfig.footer });
       }
+
+      if (welcomeConfig.thumbnail) {
+        embed.setThumbnail(welcomeConfig.thumbnail);
+      }
+
+      if (welcomeConfig.image) {
+        embed.setImage(welcomeConfig.image);
+      }
+
+      await welcomeChannel
+        .send({
+          embeds: [embed],
+          allowedMentions: { repliedUser: false },
+        })
+        .then(() => console.log(`[guildMemberAdd WELCOME] ✅ Mensaje de bienvenida enviado`))
+        .catch((error) => console.log(`[guildMemberAdd WELCOME] ❌ Error al enviar: ${error.message}`));
     } else {
       console.log(`[guildMemberAdd WELCOME] ❌ Bienvenida no configurada. enabled:${welcomeConfig?.enabled} channelId:${welcomeConfig?.channelId}`);
     }
