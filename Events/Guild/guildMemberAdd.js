@@ -9,8 +9,22 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(member, client) {
+    console.log(`[guildMemberAdd] Nuevo miembro: ${member.user.tag} en ${member.guild.name}`);
+    
     const config = getData("logs", member.guild.id);
-    if (!config || !config.logChannelId) return;
+    if (!config || !config.logChannelId) {
+      console.log(`[guildMemberAdd] Sin config de logs`);
+    }
+
+    if (config && config.logChannelId) {
+      const logChannel = member.guild.channels.cache.get(config.logChannelId);
+      if (!logChannel) {
+        console.log(`[guildMemberAdd] Canal de logs no encontrado`);
+      }
+    } else {
+      console.log(`[guildMemberAdd] Sin logChannelId configurado`);
+      return;
+    }
 
     const logChannel = member.guild.channels.cache.get(config.logChannelId);
     if (!logChannel) return;
@@ -53,8 +67,19 @@ module.exports = {
 
     // Send welcome embed
     const welcomeConfig = getData("welcome", member.guild.id);
+    console.log(`[guildMemberAdd WELCOME] Config obtenida:`, welcomeConfig);
+    
     if (welcomeConfig && welcomeConfig.enabled && welcomeConfig.channelId) {
+      console.log(`[guildMemberAdd WELCOME] Bienvenida habilitada, intentando enviar...`);
       const welcomeChannel = member.guild.channels.cache.get(welcomeConfig.channelId);
+      
+      if (!welcomeChannel) {
+        console.log(`[guildMemberAdd WELCOME] ❌ Canal no encontrado con ID: ${welcomeConfig.channelId}`);
+        return;
+      }
+      
+      console.log(`[guildMemberAdd WELCOME] ✅ Canal encontrado: ${welcomeChannel.name}`);
+      
       if (welcomeChannel) {
         const embed = new EmbedBuilder()
           .setTitle(
@@ -88,8 +113,11 @@ module.exports = {
             embeds: [embed],
             allowedMentions: { repliedUser: false },
           })
-          .catch(() => null);
+          .then(() => console.log(`[guildMemberAdd WELCOME] ✅ Mensaje enviado`))
+          .catch((error) => console.log(`[guildMemberAdd WELCOME] ❌ Error al enviar: ${error.message}`));
       }
+    } else {
+      console.log(`[guildMemberAdd WELCOME] ❌ Bienvenida no configurada. enabled:${welcomeConfig?.enabled} channelId:${welcomeConfig?.channelId}`);
     }
   },
 };
