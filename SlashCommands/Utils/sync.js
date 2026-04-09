@@ -166,7 +166,7 @@ module.exports = {
         .setFooter({ text: "Synchronized" });
 
       await interaction.editReply({
-        flags: MessageFlags.IsComponentsV2,
+        flags: MessageFlags.Ephemeral,
         components: [successContainer],
         embeds: [commitEmbed],
       });
