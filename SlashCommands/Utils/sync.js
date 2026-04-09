@@ -54,8 +54,14 @@ module.exports = {
     // Obtener información del último commit
     let lastCommitInfo = "ℹ️ Sin información de commits";
     try {
-      const commitDate = execSync("git log -1 --format=%ai", { encoding: "utf-8" }).trim();
-      const commitMessage = execSync("git log -1 --format=%s", { encoding: "utf-8" }).trim();
+      const commitDate = execSync("git log -1 --format=%ai", { 
+        encoding: "utf-8",
+        cwd: process.cwd()
+      }).trim();
+      const commitMessage = execSync("git log -1 --format=%s", { 
+        encoding: "utf-8",
+        cwd: process.cwd()
+      }).trim();
       
       if (commitDate && commitMessage) {
         const date = new Date(commitDate);
@@ -71,7 +77,8 @@ module.exports = {
         lastCommitInfo = `📅 ${formattedDate}\n📝 ${commitMessage}`;
       }
     } catch (error) {
-      console.error("Error al obtener información del commit:", error);
+      console.error("Error al obtener información del commit:", error.message);
+      // Continuar sin la información del commit si hay error
     }
 
     // Mostrar que está procesando
@@ -94,18 +101,30 @@ module.exports = {
 
       // Cargar todos los comandos
       for (const category of fs.readdirSync("./SlashCommands")) {
+        const categoryPath = `./SlashCommands/${category}`;
+        
+        if (!fs.statSync(categoryPath).isDirectory()) continue;
+        
         const files = fs
-          .readdirSync(`./SlashCommands/${category}`)
+          .readdirSync(categoryPath)
           .filter((file) => file.endsWith(".js"));
 
         for (const file of files) {
           try {
-            const command = require(`../${category}/${file}`);
-            commands.push(command.data.toJSON());
+            const commandPath = `../${category}/${file}`;
+            const command = require(commandPath);
+            
+            if (command && command.data) {
+              commands.push(command.data.toJSON());
+            }
           } catch (loadError) {
-            console.error(`Error cargando ${file}:`, loadError);
+            console.error(`⚠️ Error al cargar ${category}/${file}:`, loadError.message);
           }
         }
+      }
+
+      if (commands.length === 0) {
+        throw new Error("No se pudieron cargar comandos");
       }
 
       let synced = 0;
@@ -117,7 +136,7 @@ module.exports = {
           await interaction.guild.commands.set(commands);
           synced = commands.length;
         } catch (error) {
-          console.error("Error al sincronizar en este servidor:", error);
+          console.error("Error al sincronizar en este servidor:", error.message);
           failed++;
         }
       } else if (scope === "all") {
@@ -126,7 +145,7 @@ module.exports = {
           await interaction.client.application.commands.set(commands);
           synced = commands.length;
         } catch (error) {
-          console.error("Error al sincronizar globalmente:", error);
+          console.error("Error al sincronizar globalmente:", error.message);
           failed++;
         }
       }
@@ -152,20 +171,24 @@ module.exports = {
         embeds: [commitEmbed],
       });
     } catch (error) {
-      console.error("Error en sincronización:", error);
+      console.error("❌ Error en sincronización:", error.message || error);
 
       const errorContainer = new ContainerBuilder()
         .setAccentColor(0xff0000)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            "❌ Error durante la sincronización. Revisa la consola."
+            `❌ Error durante la sincronización:\n${error.message || "Error desconocido"}`
           )
         );
 
-      await interaction.editReply({
-        flags: MessageFlags.IsComponentsV2,
-        components: [errorContainer],
-      });
+      try {
+        await interaction.editReply({
+          flags: MessageFlags.IsComponentsV2,
+          components: [errorContainer],
+        });
+      } catch (replyError) {
+        console.error("Error al enviar respuesta de error:", replyError.message);
+      }
     }
   },
 };
