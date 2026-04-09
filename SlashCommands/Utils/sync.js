@@ -1,7 +1,5 @@
 const {
   SlashCommandBuilder,
-  ContainerBuilder,
-  TextDisplayBuilder,
   MessageFlags,
   PermissionsBitField,
   EmbedBuilder,
@@ -27,73 +25,33 @@ module.exports = {
     .setIntegrationTypes(0),
 
   async execute(interaction) {
-    // Verificar si es administrador del servidor o dueño del bot
-    const isDev = interaction.user.id === "1065387598649733160"; // Tu ID
+    // Verificar si es administrador
+    const isDev = interaction.user.id === "1065387598649733160";
     const isAdmin = interaction.member.permissions.has(
       PermissionsBitField.Flags.Administrator
     );
 
     if (!isDev && !isAdmin) {
-      const container = new ContainerBuilder()
-        .setAccentColor(0xff0000)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            "⚠️ Solo administradores pueden usar este comando."
-          )
-        );
+      const errorEmbed = new EmbedBuilder()
+        .setColor(0xff0000)
+        .setDescription("⚠️ Solo administradores pueden usar este comando.");
 
       return interaction.reply({
-        flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-        components: [container],
-        allowedMentions: { repliedUser: false },
+        embeds: [errorEmbed],
+        flags: MessageFlags.Ephemeral,
       });
     }
 
     const scope = interaction.options.getString("scope") || "guild";
 
-    // Obtener información del último commit
-    let lastCommitInfo = "ℹ️ Sin información de commits";
-    try {
-      const commitDate = execSync("git log -1 --format=%ai", { 
-        encoding: "utf-8",
-        cwd: process.cwd()
-      }).trim();
-      const commitMessage = execSync("git log -1 --format=%s", { 
-        encoding: "utf-8",
-        cwd: process.cwd()
-      }).trim();
-      
-      if (commitDate && commitMessage) {
-        const date = new Date(commitDate);
-        const formattedDate = date.toLocaleString("es-ES", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          timeZone: "UTC",
-        });
-        lastCommitInfo = `📅 ${formattedDate}\n📝 ${commitMessage}`;
-      }
-    } catch (error) {
-      console.error("Error al obtener información del commit:", error.message);
-      // Continuar sin la información del commit si hay error
-    }
-
     // Mostrar que está procesando
-    const processingContainer = new ContainerBuilder()
-      .setAccentColor(0x3498db)
-      .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          "⏳ Sincronizando comandos..."
-        )
-      );
+    const processingEmbed = new EmbedBuilder()
+      .setColor(0x3498db)
+      .setDescription("⏳ Sincronizando comandos...");
 
     await interaction.reply({
-      flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
-      components: [processingContainer],
-      allowedMentions: { repliedUser: false },
+      embeds: [processingEmbed],
+      flags: MessageFlags.Ephemeral,
     });
 
     try {
@@ -127,68 +85,56 @@ module.exports = {
         throw new Error("No se pudieron cargar comandos");
       }
 
-      let synced = 0;
-      let failed = 0;
-
       if (scope === "guild") {
-        // Sincronizar solo en este servidor
-        try {
-          await interaction.guild.commands.set(commands);
-          synced = commands.length;
-        } catch (error) {
-          console.error("Error al sincronizar en este servidor:", error.message);
-          failed++;
-        }
+        await interaction.guild.commands.set(commands);
       } else if (scope === "all") {
-        // Sincronizar globalmente
-        try {
-          await interaction.client.application.commands.set(commands);
-          synced = commands.length;
-        } catch (error) {
-          console.error("Error al sincronizar globalmente:", error.message);
-          failed++;
-        }
+        await interaction.client.application.commands.set(commands);
       }
 
-      const successContainer = new ContainerBuilder()
-        .setAccentColor(0x2ecc71)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `✅ Sincronización completada\n📊 Comandos: ${commands.length}\n🎯 Alcance: ${scope === "guild" ? "Este servidor" : "Todos los servidores"}\n${failed > 0 ? `⚠️ Errores: ${failed}` : ""}`
-          )
-        );
+      // Obtener última hora de actualización
+      let lastUpdate = "N/A";
+      try {
+        const commitDate = execSync("git log -1 --format=%ai", { 
+          encoding: "utf-8",
+          cwd: process.cwd()
+        }).trim();
+        
+        if (commitDate) {
+          const date = new Date(commitDate);
+          lastUpdate = date.toLocaleString("es-ES", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+        }
+      } catch (error) {
+        console.error("Error al obtener última actualización:", error.message);
+      }
 
-      // Crear embed para el último commit
-      const commitEmbed = new EmbedBuilder()
-        .setColor(0x3498db)
-        .setTitle("📋 Última Actualización")
-        .setDescription(lastCommitInfo)
-        .setFooter({ text: "Synchronized" });
+      const successEmbed = new EmbedBuilder()
+        .setColor(0x2ecc71)
+        .setTitle("✅ Sincronización completada")
+        .setDescription(
+          `📊 Comandos sincronizados: ${commands.length}\n🎯 Alcance: ${scope === "guild" ? "Este servidor" : "Global"}\n📅 Última actualización: ${lastUpdate}`
+        );
 
       await interaction.editReply({
-        flags: MessageFlags.Ephemeral,
-        components: [successContainer],
-        embeds: [commitEmbed],
+        embeds: [successEmbed],
       });
     } catch (error) {
-      console.error("❌ Error en sincronización:", error.message || error);
+      console.error("❌ Error en sincronización:", error.message);
 
-      const errorContainer = new ContainerBuilder()
-        .setAccentColor(0xff0000)
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(
-            `❌ Error durante la sincronización:\n${error.message || "Error desconocido"}`
-          )
-        );
+      const errorEmbed = new EmbedBuilder()
+        .setColor(0xff0000)
+        .setTitle("❌ Error en sincronización")
+        .setDescription(error.message || "Error desconocido");
 
-      try {
-        await interaction.editReply({
-          flags: MessageFlags.IsComponentsV2,
-          components: [errorContainer],
-        });
-      } catch (replyError) {
-        console.error("Error al enviar respuesta de error:", replyError.message);
-      }
+      await interaction.editReply({
+        embeds: [errorEmbed],
+      });
     }
   },
 };
