@@ -74,7 +74,9 @@ module.exports = {
           .filter((file) => file.endsWith(".js"));
 
         for (const file of files) {
-          const command = require(`../SlashCommands/${category}/${file}`);
+          // Limpiar el cache para obtener la versión más reciente
+          delete require.cache[require.resolve(`../${category}/${file}`)];
+          const command = require(`../${category}/${file}`);
           commands.push(command.data.toJSON());
         }
       }
