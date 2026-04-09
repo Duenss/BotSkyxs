@@ -150,7 +150,7 @@ module.exports = {
           )
         );
 
-      await collected.reply({
+      const confirmResponse = await collected.reply({
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         components: [confirmRow, container2],
       });
@@ -160,12 +160,12 @@ module.exports = {
           i.customId === "cancel_delete_channels") &&
         i.user.id === interaction.user.id;
 
-      const confirmCollected = await response
+      const confirmCollected = await confirmResponse
         .awaitMessageComponent({ filter: filterConfirm, time: 30000 })
         .catch(() => null);
 
       if (!confirmCollected) {
-        return collected.editReply({
+        return confirmResponse.edit({
           content: "⏱️ Se agotó el tiempo de espera.",
           components: [],
         });
@@ -313,7 +313,7 @@ module.exports = {
           )
         );
 
-      await collected.reply({
+      const confirmResponse = await collected.reply({
         flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
         components: [confirmRow, container2],
       });
@@ -323,12 +323,12 @@ module.exports = {
           i.customId === "cancel_delete_category") &&
         i.user.id === interaction.user.id;
 
-      const confirmCollected = await response
+      const confirmCollected = await confirmResponse
         .awaitMessageComponent({ filter: filterConfirm, time: 30000 })
         .catch(() => null);
 
       if (!confirmCollected) {
-        return collected.editReply({
+        return confirmResponse.edit({
           content: "⏱️ Se agotó el tiempo de espera.",
           components: [],
         });
