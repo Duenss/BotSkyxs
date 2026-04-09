@@ -10,17 +10,7 @@ const { execSync } = require("child_process");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("sync")
-    .setDescription("Sincroniza los comandos slash del bot.")
-    .addStringOption((option) =>
-      option
-        .setName("scope")
-        .setDescription("Alcance de la sincronización")
-        .setRequired(false)
-        .addChoices(
-          { name: "Este servidor", value: "guild" },
-          { name: "Todos los servidores", value: "all" }
-        )
-    )
+    .setDescription("Sincroniza los comandos slash del bot en todos los servidores.")
     .setContexts(0)
     .setIntegrationTypes(0),
 
@@ -42,12 +32,10 @@ module.exports = {
       });
     }
 
-    const scope = interaction.options.getString("scope") || "guild";
-
     // Mostrar que está procesando
     const processingEmbed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setDescription("⏳ Sincronizando comandos...");
+      .setDescription("⏳ Sincronizando comandos en todos los servidores...");
 
     await interaction.reply({
       embeds: [processingEmbed],
@@ -85,11 +73,8 @@ module.exports = {
         throw new Error("No se pudieron cargar comandos");
       }
 
-      if (scope === "guild") {
-        await interaction.guild.commands.set(commands);
-      } else if (scope === "all") {
-        await interaction.client.application.commands.set(commands);
-      }
+      // Sincronizar globalmente (en todos los servidores)
+      await interaction.client.application.commands.set(commands);
 
       // Obtener última hora de actualización
       let lastUpdate = "N/A";
@@ -118,7 +103,7 @@ module.exports = {
         .setColor(0x2ecc71)
         .setTitle("✅ Sincronización completada")
         .setDescription(
-          `📊 Comandos sincronizados: ${commands.length}\n🎯 Alcance: ${scope === "guild" ? "Este servidor" : "Global"}\n📅 Última actualización: ${lastUpdate}`
+          `📊 Comandos: ${commands.length}\n📅 Última actualización: ${lastUpdate}`
         );
 
       await interaction.editReply({
