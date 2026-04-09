@@ -1,4 +1,4 @@
-const { ActivityType } = require("discord.js");
+﻿const { ActivityType } = require("discord.js");
 require("colors");
 
 module.exports = {
@@ -15,7 +15,7 @@ module.exports = {
 
     const estados = [
       {
-        name: "Holi Boli soy un discord creado por @JvampaRD, estoy listo para ayudarte | skyxsenterprice.netlify.app",
+        name: "🗣 DiscoBot v1.0 | /help",
         type: ActivityType.Playing,
         status: "online",
       },
@@ -41,3 +41,4 @@ module.exports = {
     }, 5000);
   },
 };
+
