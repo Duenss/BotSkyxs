@@ -10,4 +10,14 @@ client.slashCommands = new Collection();
   await require("./Handlers/eventHandler").loadEvents(client);
 })();
 
-client.login(process.env.TOKEN_DISCORD_BOT);
+const token = process.env.TOKEN_DISCORD_BOT;
+if (!token || token === "YOUR_BOT_TOKEN_HERE") {
+  console.error("[ERROR] TOKEN_DISCORD_BOT no está configurado en las variables de entorno.");
+  console.error("Define TOKEN_DISCORD_BOT en Railway o en tu archivo .env con el token real del bot.");
+  process.exit(1);
+}
+
+client.login(token).catch((error) => {
+  console.error("[ERROR] Error al iniciar sesión con Discord:", error);
+  process.exit(1);
+});
