@@ -16,7 +16,6 @@ token.js
 xd.js
 secrets.js
 credentials.txt
-Database/
 
 # --- Logs ---
 npm-debug.log*
