@@ -10,7 +10,7 @@ const { execSync } = require("child_process");
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("sync")
-    .setDescription("Sincroniza los comandos slash del bot en todos los servidores.")
+    .setDescription("Sincroniza los comandos slash del bot en este servidor.")
     .setContexts(0)
     .setIntegrationTypes(0),
 
@@ -35,7 +35,7 @@ module.exports = {
     // Mostrar que está procesando
     const processingEmbed = new EmbedBuilder()
       .setColor(0x3498db)
-      .setDescription("⏳ Sincronizando comandos en todos los servidores...");
+      .setDescription("⏳ Sincronizando comandos en este servidor...");
 
     await interaction.reply({
       embeds: [processingEmbed],
@@ -73,8 +73,8 @@ module.exports = {
         throw new Error("No se pudieron cargar comandos");
       }
 
-      // Sincronizar globalmente (en todos los servidores)
-      await interaction.client.application.commands.set(commands);
+      // Sincronizar en este servidor (evita duplicados con globales)
+      await interaction.guild.commands.set(commands);
 
       // Obtener última hora de actualización
       let lastUpdate = "N/A";
