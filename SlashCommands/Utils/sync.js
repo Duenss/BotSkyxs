@@ -6,6 +6,7 @@ const {
   PermissionsBitField,
 } = require("discord.js");
 const fs = require("fs");
+const { execSync } = require("child_process");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -48,6 +49,29 @@ module.exports = {
     }
 
     const scope = interaction.options.getString("scope") || "guild";
+
+    // Obtener información del último commit
+    let lastCommitInfo = "ℹ️ Sin información de commits";
+    try {
+      const commitDate = execSync("git log -1 --format=%ai", { encoding: "utf-8" }).trim();
+      const commitMessage = execSync("git log -1 --format=%s", { encoding: "utf-8" }).trim();
+      
+      if (commitDate && commitMessage) {
+        const date = new Date(commitDate);
+        const formattedDate = date.toLocaleString("es-ES", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZone: "UTC",
+        });
+        lastCommitInfo = `📅 ${formattedDate}\n📝 ${commitMessage}`;
+      }
+    } catch (error) {
+      console.error("Error al obtener información del commit:", error);
+    }
 
     // Mostrar que está procesando
     const processingContainer = new ContainerBuilder()
@@ -120,7 +144,7 @@ module.exports = {
         .setAccentColor(0x2ecc71)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `✅ Sincronización completada\n📊 Comandos: ${commands.length}\n🎯 Alcance: ${scope === "guild" ? "Este servidor" : "Todos los servidores"}\n${failed > 0 ? `⚠️ Errores: ${failed}` : ""}`
+            `✅ Sincronización completada\n📊 Comandos: ${commands.length}\n🎯 Alcance: ${scope === "guild" ? "Este servidor" : "Todos los servidores"}\n${failed > 0 ? `⚠️ Errores: ${failed}` : ""}\n\n📋 **Última actualización:**\n${lastCommitInfo}`
           )
         );
 
