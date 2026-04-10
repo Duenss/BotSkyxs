@@ -59,6 +59,13 @@ module.exports = {
           option
             .setName("image")
             .setDescription("URL de la imagen principal del embed."),
+        )
+        .addStringOption((option) =>
+          option
+            .setName("options")
+            .setDescription(
+              "Opciones del menú, formato: label|value|description;label|value|description",
+            ),
         ),
     )
     .addSubcommand((subcommand) =>
@@ -75,6 +82,48 @@ module.exports = {
     .setIntegrationTypes(0),
 
   async execute(interaction) {
+    const buildSelectMenu = (optionsString) => {
+      const defaultOptions = [
+        { label: "Soporte", value: "support", description: "Abrir un ticket de soporte general." },
+        { label: "Panel Completo", value: "panel_completo", description: "Solicitar un panel completo." },
+        { label: "Panel Básico", value: "panel_basico", description: "Solicitar un panel básico." },
+        { label: "UID", value: "uid", description: "Solicitar un UID." },
+        { label: "Bypass UID", value: "bypass_uid", description: "Solicitar un bypass UID." },
+      ];
+
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId("open_ticket_select")
+        .setPlaceholder("Selecciona el producto o soporte")
+        .setMinValues(1)
+        .setMaxValues(1);
+
+      const sourceOptions = [];
+
+      if (optionsString) {
+        optionsString.split(";").forEach((raw) => {
+          const parts = raw.split("|").map((part) => part.trim());
+          if (parts.length >= 2 && parts[0] && parts[1]) {
+            sourceOptions.push({
+              label: parts[0].slice(0, 100),
+              value: parts[1].slice(0, 100),
+              description: parts[2] ? parts[2].slice(0, 100) : undefined,
+            });
+          }
+        });
+      }
+
+      (sourceOptions.length ? sourceOptions : defaultOptions).forEach((option) => {
+        selectMenu.addOptions(
+          new StringSelectMenuOptionBuilder()
+            .setLabel(option.label)
+            .setValue(option.value)
+            .setDescription(option.description || ""),
+        );
+      });
+
+      return selectMenu;
+    };
+
     if (
       !interaction.member.permissions.has(
         PermissionsBitField.Flags.Administrator,
@@ -107,6 +156,7 @@ module.exports = {
       const footer = interaction.options.getString("footer") || ticketConfig.footer || "Ticket creado por el sistema de soporte";
       const thumbnail = interaction.options.getString("thumbnail") || ticketConfig.thumbnail || null;
       const image = interaction.options.getString("image") || ticketConfig.image || null;
+      const menuOptions = interaction.options.getString("options") || ticketConfig.options;
 
       if (!title || !description) {
         const container = new ContainerBuilder()
@@ -171,34 +221,7 @@ module.exports = {
         embed.setImage(image);
       }
 
-      const selectMenu = new StringSelectMenuBuilder()
-        .setCustomId("open_ticket_select")
-        .setPlaceholder("Selecciona el producto o soporte")
-        .setMinValues(1)
-        .setMaxValues(1)
-        .addOptions(
-          new StringSelectMenuOptionBuilder()
-            .setLabel("Soporte")
-            .setValue("support")
-            .setDescription("Abrir un ticket de soporte general."),
-          new StringSelectMenuOptionBuilder()
-            .setLabel("Panel Completo")
-            .setValue("panel_completo")
-            .setDescription("Solicitar un panel completo."),
-          new StringSelectMenuOptionBuilder()
-            .setLabel("Panel Básico")
-            .setValue("panel_basico")
-            .setDescription("Solicitar un panel básico."),
-          new StringSelectMenuOptionBuilder()
-            .setLabel("UID")
-            .setValue("uid")
-            .setDescription("Solicitar un UID."),
-          new StringSelectMenuOptionBuilder()
-            .setLabel("Bypass UID")
-            .setValue("bypass_uid")
-            .setDescription("Solicitar un bypass UID."),
-        );
-
+      const selectMenu = buildSelectMenu(menuOptions);
       const selectRow = new ActionRowBuilder().addComponents(selectMenu);
       let panelMessage = null;
 
@@ -238,6 +261,7 @@ module.exports = {
         footer,
         thumbnail,
         image,
+        options,
       });
 
       const container = new ContainerBuilder()
@@ -282,12 +306,13 @@ module.exports = {
       const footer = ticketConfig.footer || "No configurado";
       const thumbnail = ticketConfig.thumbnail || "No configurado";
       const image = ticketConfig.image || "No configurado";
+      const options = ticketConfig.options || "No configuradas";
 
       const container = new ContainerBuilder()
         .setAccentColor(0x3498db)
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(
-            `## 📊 Estado del sistema de tickets\n\n**Estado:** ${status}\n**Canal:** ${channel}\n**Título:** ${title}\n**Descripción:** ${description}\n**Color:** ${color}\n**Footer:** ${footer}\n**Thumbnail:** ${thumbnail}\n**Imagen:** ${image}`,
+            `## 📊 Estado del sistema de tickets\n\n**Estado:** ${status}\n**Canal:** ${channel}\n**Título:** ${title}\n**Descripción:** ${description}\n**Color:** ${color}\n**Footer:** ${footer}\n**Thumbnail:** ${thumbnail}\n**Imagen:** ${image}\n**Opciones:** ${options}`,
           ),
         );
 
