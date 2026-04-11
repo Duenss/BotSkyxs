@@ -261,7 +261,7 @@ module.exports = {
         footer,
         thumbnail,
         image,
-        options,
+        options: menuOptions,
       });
 
       const container = new ContainerBuilder()
