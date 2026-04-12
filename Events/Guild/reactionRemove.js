@@ -15,7 +15,7 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(reaction, user, client) {
-    console.log(`[LOG ACTIVIDAD REACCION] Reacción removida por ${user.tag}`);
+    console.log(`[LOG ACTIVIDAD REACCION] ❌ Reacción removida por ${user.tag} en #${reaction.message.channel.name}`);
 
     // Ignorar bots
     if (user.bot) {

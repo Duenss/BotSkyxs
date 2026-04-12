@@ -32,12 +32,11 @@ module.exports = {
     }
     console.log(`[LOG] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
-    const fetchLogs = await role.guild
-      .fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleCreate })
-      .catch(() => null);
-
     const logEntry = fetchLogs ? fetchLogs.entries.first() : null;
     const executor = logEntry ? logEntry.executor : "Desconocido";
+    const executorName = logEntry ? logEntry.executor.tag : "Desconocido";
+
+    console.log(`[LOG] ✅ Rol creado: ${role.name} por ${executorName}`);
 
     if (logEntry?.executor) {
       await handleSecurityAction(

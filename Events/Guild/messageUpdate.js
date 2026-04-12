@@ -16,7 +16,7 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(oldMessage, newMessage, client) {
-    console.log(`[LOG] messageUpdate ejecutado en servidor: ${newMessage.guild?.name}`);
+    console.log(`[LOG] ✏️ Mensaje editado por ${newMessage.author.tag} en #${newMessage.channel.name}`);
     if (!newMessage.guild) return;
 
     if (oldMessage.partial) await oldMessage.fetch().catch(() => null);

@@ -22,14 +22,15 @@ module.exports = {
     }
     console.log(`[LOG] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
-    const fetchLogs = await member.guild
-      .fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick })
-      .catch(() => null);
-
     const logEntry = fetchLogs ? fetchLogs.entries.first() : null;
     const isKicked =
       logEntry && logEntry.target.id === member.id &&
       Date.now() - logEntry.createdTimestamp < 5000;
+
+    const executorName = logEntry ? logEntry.executor.tag : "Sistema";
+    const actionType = isKicked ? "EXPULSADO" : "ABANDONÓ";
+
+    console.log(`[LOG] ❌ Miembro ${actionType}: ${member.user.tag} ${isKicked ? `por ${executorName}` : ""}`);
 
     if (isKicked && logEntry?.executor) {
       await handleSecurityAction(

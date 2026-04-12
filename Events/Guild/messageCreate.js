@@ -14,7 +14,7 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(message, client) {
-    console.log(`[LOG ACTIVIDAD TEXTO] Mensaje enviado por ${message.author.tag} en #${message.channel.name} (${message.channel.id})`);
+    console.log(`[LOG ACTIVIDAD TEXTO] 💬 Mensaje enviado por ${message.author.tag} en #${message.channel.name}`);
     
     // Ignorar bots y DMs
     if (message.author.bot || !message.guild) {

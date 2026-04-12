@@ -41,13 +41,18 @@ module.exports = {
     const logEntry = fetchLogs ? fetchLogs.entries.first() : null;
 
     let executor = `<@${message.author?.id || "Desconocido"}> (El mismo autor)`;
+    let executorName = message.author?.tag || "Desconocido";
 
     if (logEntry) {
       const tiempo = Date.now() - logEntry.createdTimestamp;
 
       if (tiempo < 5000 && logEntry.target.id === message.author?.id) {
         executor = `<@${logEntry.executor.id}> (Moderador)`;
+        executorName = logEntry.executor.tag;
+        console.log(`[LOG] 🗑️ Mensaje eliminado por MODERADOR: ${executorName}`);
       }
+    } else {
+      console.log(`[LOG] 🗑️ Mensaje eliminado por AUTOR: ${executorName}`);
     }
 
     const hasText = message.content && message.content.trim().length > 0;

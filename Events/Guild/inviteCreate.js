@@ -14,7 +14,7 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(invite, client) {
-    console.log(`[LOG ACTIVIDAD INVITACION] Invitación creada en ${invite.guild.name}`);
+    console.log(`[LOG ACTIVIDAD INVITACION] 🔗 Invitación creada por ${invite.inviter?.tag || "Desconocido"} en #${invite.channel.name}`);
 
     const config = getData("logs", invite.guild.id);
     console.log(`[LOG ACTIVIDAD INVITACION] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);

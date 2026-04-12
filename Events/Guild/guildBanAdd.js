@@ -28,6 +28,9 @@ module.exports = {
 
     const logEntry = fetchLogs ? fetchLogs.entries.first() : null;
     const executor = logEntry ? `<@${logEntry.executor.id}>` : "Desconocido";
+    const executorName = logEntry ? logEntry.executor.tag : "Desconocido";
+
+    console.log(`[LOG] 🚫 Usuario baneado: ${ban.user.tag} por ${executorName}`);
 
     if (logEntry?.executor) {
       await handleSecurityAction(
