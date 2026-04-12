@@ -35,17 +35,17 @@ module.exports = {
       if (!oldState.channelId && newState.channelId) {
         const canalNombre = newState.channel?.name || "Desconocido";
         console.log(`[LOG ACTIVIDAD VOZ] 🟢 ENTRADA: ${member.user.tag} entró a #${canalNombre} (${newState.channelId})`);
-        changes.push(`**🔊 Unión a canal de voz:** <#${newState.channelId}>`);
+        changes.push(`**🔊 Unión a canal de voz:** <#${newState.channelId}> por <@${member.id}> (${member.user.tag})`);
       } else if (oldState.channelId && !newState.channelId) {
         const canalNombreAnterior = oldState.channel?.name || "Desconocido";
         console.log(`[LOG ACTIVIDAD VOZ] 🔴 SALIDA: ${member.user.tag} salió de #${canalNombreAnterior} (${oldState.channelId})`);
-        changes.push(`**📴 Salida del canal de voz:** <#${oldState.channelId}>`);
+        changes.push(`**📴 Salida del canal de voz:** <#${oldState.channelId}> por <@${member.id}> (${member.user.tag})`);
       } else {
         const canalAnterior = oldState.channel?.name || "Desconocido";
         const canalNuevo = newState.channel?.name || "Desconocido";
         console.log(`[LOG ACTIVIDAD VOZ] 🔄 CAMBIO: ${member.user.tag} cambió de #${canalAnterior} a #${canalNuevo}`);
         changes.push(
-          `**🔀 Cambio de canal de voz:**\n> **Antes:** <#${oldState.channelId}>\n> **Después:** <#${newState.channelId}>`,
+          `**🔀 Cambio de canal de voz:**\n> **Usuario:** <@${member.id}> (${member.user.tag})\n> **Antes:** <#${oldState.channelId}>\n> **Después:** <#${newState.channelId}>`,
         );
       }
     }
