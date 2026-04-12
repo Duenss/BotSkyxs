@@ -13,11 +13,18 @@ module.exports = {
     const guild = newState.guild || oldState.guild;
     if (!guild) return;
 
+    console.log(`[LOG ACTIVIDAD VOZ] Voice state update para ${(newState.member || oldState.member)?.user?.tag}`);
+
     const config = getData("logs", guild.id);
+    console.log(`[LOG ACTIVIDAD VOZ] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;
 
     const logChannel = guild.channels.cache.get(config.logChannelId);
-    if (!logChannel) return;
+    if (!logChannel) {
+      console.log(`[LOG ACTIVIDAD VOZ] ❌ Canal de logs no encontrado con ID: ${config.logChannelId}`);
+      return;
+    }
+    console.log(`[LOG ACTIVIDAD VOZ] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
     const member = newState.member || oldState.member;
     if (!member) return;
@@ -26,10 +33,17 @@ module.exports = {
 
     if (oldState.channelId !== newState.channelId) {
       if (!oldState.channelId && newState.channelId) {
+        const canalNombre = newState.channel?.name || "Desconocido";
+        console.log(`[LOG ACTIVIDAD VOZ] 🟢 ENTRADA: ${member.user.tag} entró a #${canalNombre} (${newState.channelId})`);
         changes.push(`**🔊 Unión a canal de voz:** <#${newState.channelId}>`);
       } else if (oldState.channelId && !newState.channelId) {
+        const canalNombreAnterior = oldState.channel?.name || "Desconocido";
+        console.log(`[LOG ACTIVIDAD VOZ] 🔴 SALIDA: ${member.user.tag} salió de #${canalNombreAnterior} (${oldState.channelId})`);
         changes.push(`**📴 Salida del canal de voz:** <#${oldState.channelId}>`);
       } else {
+        const canalAnterior = oldState.channel?.name || "Desconocido";
+        const canalNuevo = newState.channel?.name || "Desconocido";
+        console.log(`[LOG ACTIVIDAD VOZ] 🔄 CAMBIO: ${member.user.tag} cambió de #${canalAnterior} a #${canalNuevo}`);
         changes.push(
           `**🔀 Cambio de canal de voz:**\n> **Antes:** <#${oldState.channelId}>\n> **Después:** <#${newState.channelId}>`,
         );
@@ -66,7 +80,10 @@ module.exports = {
       changes.push(`**🔇 Cambios de silencio/ensordecimiento:**\n${voiceChanges.join("\n")}`);
     }
 
-    if (changes.length === 0) return;
+    if (changes.length === 0) {
+      console.log(`[LOG ACTIVIDAD VOZ] ⊘ Sin cambios relevantes, ignorado`);
+      return;
+    }
 
     const container = new ContainerBuilder()
       .setAccentColor(0x3498db)
@@ -100,6 +117,7 @@ module.exports = {
         components: [container],
         allowedMentions: { repliedUser: false },
       })
-      .catch(() => null);
+      .then(() => console.log(`[LOG ACTIVIDAD VOZ] ✅ Evento de voz registrado en ${logChannel.name}`))
+      .catch((err) => console.log(`[LOG ACTIVIDAD VOZ] ❌ Error al enviar log: ${err.message}`));
   },
 };

@@ -10,11 +10,17 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(member, client) {
+    console.log(`[LOG] guildMemberRemove ejecutado - Usuario: ${member.user.tag}`);
     const config = getData("logs", member.guild.id);
+    console.log(`[LOG] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;
 
     const logChannel = member.guild.channels.cache.get(config.logChannelId);
-    if (!logChannel) return;
+    if (!logChannel) {
+      console.log(`[LOG] ❌ Canal no encontrado con ID: ${config.logChannelId}`);
+      return;
+    }
+    console.log(`[LOG] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
     const fetchLogs = await member.guild
       .fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick })
@@ -68,7 +74,8 @@ module.exports = {
         components: [container],
         allowedMentions: { repliedUser: false },
       })
-      .catch(() => null);
+      .then(() => console.log(`[LOG] ✅ Mensaje de log enviado a ${logChannel.name}`))
+      .catch((err) => console.log(`[LOG] ❌ Error al enviar log: ${err.message}`));
 
     // Send leave embed if not kicked
     if (!isKicked) {

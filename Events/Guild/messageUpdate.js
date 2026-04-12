@@ -16,6 +16,7 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(oldMessage, newMessage, client) {
+    console.log(`[LOG] messageUpdate ejecutado en servidor: ${newMessage.guild?.name}`);
     if (!newMessage.guild) return;
 
     if (oldMessage.partial) await oldMessage.fetch().catch(() => null);
@@ -26,10 +27,15 @@ module.exports = {
     if (oldMessage.content === newMessage.content) return;
 
     const config = getData("logs", newMessage.guild.id);
+    console.log(`[LOG] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;
 
     const logChannel = newMessage.guild.channels.cache.get(config.logChannelId);
-    if (!logChannel) return;
+    if (!logChannel) {
+      console.log(`[LOG] ❌ Canal no encontrado con ID: ${config.logChannelId}`);
+      return;
+    }
+    console.log(`[LOG] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
     const oldContent =
       oldMessage.content || "*[Mensaje sin texto / Solo archivo]*";
@@ -68,6 +74,7 @@ module.exports = {
         components: [container],
         allowedMentions: { repliedUser: false },
       })
-      .catch(() => null);
+      .then(() => console.log(`[LOG] ✅ Mensaje de log enviado a ${logChannel.name}`))
+      .catch((err) => console.log(`[LOG] ❌ Error al enviar log: ${err.message}`));
   },
 };

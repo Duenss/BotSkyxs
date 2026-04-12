@@ -10,11 +10,17 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(ban, client) {
+    console.log(`[LOG] guildBanAdd ejecutado - Usuario: ${ban.user.tag}`);
     const config = getData("logs", ban.guild.id);
+    console.log(`[LOG] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;
 
     const logChannel = ban.guild.channels.cache.get(config.logChannelId);
-    if (!logChannel) return;
+    if (!logChannel) {
+      console.log(`[LOG] ❌ Canal no encontrado con ID: ${config.logChannelId}`);
+      return;
+    }
+    console.log(`[LOG] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
     const fetchLogs = await ban.guild
       .fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberBanAdd })
@@ -66,6 +72,7 @@ module.exports = {
         components: [container],
         allowedMentions: { repliedUser: false },
       })
-      .catch(() => null);
+      .then(() => console.log(`[LOG] ✅ Mensaje de log enviado a ${logChannel.name}`))
+      .catch((err) => console.log(`[LOG] ❌ Error al enviar log: ${err.message}`));
   },
 };

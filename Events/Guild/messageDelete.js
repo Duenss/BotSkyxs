@@ -18,15 +18,21 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(message, client) {
+    console.log(`[LOG] messageDelete ejecutado en servidor: ${message.guild?.name}`);
     if (!message.guild) return;
     if (message.partial) await message.fetch().catch(() => null);
     if (message.author?.bot) return;
 
     const config = getData("logs", message.guild.id);
+    console.log(`[LOG] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;
 
     const logChannel = message.guild.channels.cache.get(config.logChannelId);
-    if (!logChannel) return;
+    if (!logChannel) {
+      console.log(`[LOG] ❌ Canal no encontrado con ID: ${config.logChannelId}`);
+      return;
+    }
+    console.log(`[LOG] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
     const fetchLogs = await message.guild
       .fetchAuditLogs({ limit: 1, type: AuditLogEvent.MessageDelete })
@@ -106,6 +112,7 @@ module.exports = {
         components: [container],
         allowedMentions: { repliedUser: false },
       })
-      .catch(() => null);
+      .then(() => console.log(`[LOG] ✅ Mensaje de log enviado a ${logChannel.name}`))
+      .catch((err) => console.log(`[LOG] ❌ Error al enviar log: ${err.message}`));
   },
 };

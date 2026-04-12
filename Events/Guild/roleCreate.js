@@ -17,15 +17,20 @@ module.exports = {
    * @param {import("discord.js").Client} client
    */
   async execute(role, client) {
+    console.log(`[LOG] roleCreate ejecutado - Rol: ${role.name}`);
     if (!role.guild) return;
 
     const config = getData("logs", role.guild.id);
-
+    console.log(`[LOG] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;
 
     const logChannel = role.guild.channels.cache.get(config.logChannelId);
 
-    if (!logChannel) return;
+    if (!logChannel) {
+      console.log(`[LOG] ❌ Canal no encontrado con ID: ${config.logChannelId}`);
+      return;
+    }
+    console.log(`[LOG] ✅ Canal encontrado: ${logChannel.name}#${logChannel.id}`);
 
     const fetchLogs = await role.guild
       .fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleCreate })
@@ -77,6 +82,7 @@ module.exports = {
         components: [container],
         allowedMentions: { repliedUser: false },
       })
-      .catch(() => null);
+      .then(() => console.log(`[LOG] ✅ Mensaje de log enviado a ${logChannel.name}`))
+      .catch((err) => console.log(`[LOG] ❌ Error al enviar log: ${err.message}`));
   },
 };
