@@ -106,3 +106,5 @@ module.exports = {
         allowedMentions: { repliedUser: false },
       });
     }
+  },
+};
