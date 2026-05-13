@@ -284,5 +284,4 @@ module.exports = {
   handleBotAddition,
   handleVanityChange,
   getConfig,
-  isWhitelisted,
-};
+  isWhitelisted,};

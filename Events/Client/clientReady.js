@@ -17,39 +17,24 @@ module.exports = {
       await require("../../Handlers/slashHandler").loadSlash(client);
       console.log("[DEBUG] Comandos slash cargados exitosamente.");
 
-      const estados = [
-        {
-          name: "🗣 DiscoBot v1.0 | /help",
-          type: ActivityType.Playing,
-          status: "online",
-        },
-      ];
+      const estado = {
+        name: "🗣 DiscoBot v1.0 | /help",
+        type: ActivityType.Playing,
+        status: "online",
+      };
 
-      let i = 0;
-
-      console.log("[DEBUG] Configurando intervalo de estados...");
-      setInterval(async () => {
-        try {
-          const actual = estados[i];
-          console.log(`[DEBUG] Cambiando estado a: ${actual.name}`);
-
-          client.user.setPresence({
-            activities: [
-              {
-                name: actual.name,
-                type: actual.type,
-                url: actual.url ?? null,
-              },
-            ],
-
-            status: actual.status,
-          });
-          i = (i + 1) % estados.length;
-        } catch (error) {
-          console.error("[DEBUG ERROR] Error al cambiar estado:", error);
-        }
-      }, 5000);
-      console.log("[DEBUG] Intervalo de estados configurado.");
+      console.log("[DEBUG] Configurando estado estático...");
+      client.user.setPresence({
+        activities: [
+          {
+            name: estado.name,
+            type: estado.type,
+            url: estado.url ?? null,
+          },
+        ],
+        status: estado.status,
+      });
+      console.log("[DEBUG] Estado estático configurado.");
     } catch (error) {
       console.error("[DEBUG ERROR] Error en clientReady:", error);
     }
