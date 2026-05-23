@@ -17,7 +17,12 @@ if (!token || token === "YOUR_BOT_TOKEN_HERE") {
   process.exit(1);
 }
 
+// Servidor HTTP para recibir instrucciones del dashboard
+require("./server.js")(client);
+
 client.login(token).catch((error) => {
   console.error("[ERROR] Error al iniciar sesión con Discord:", error);
   process.exit(1);
 });
+
+module.exports = { client };
