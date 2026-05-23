@@ -1,5 +1,6 @@
 // server.js — Servidor HTTP para recibir instrucciones del dashboard
 const express = require("express");
+const { setData } = require("./Events/Client/dbManager");
 
 module.exports = function startServer(client) {
   const app = express();
@@ -144,6 +145,33 @@ module.exports = function startServer(client) {
       res.json({ ok: true, message: "Embed enviado correctamente" });
     } catch (err) {
       console.error("[API /send-embed] Error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /welcome-config — guarda el mensaje automatico de bienvenida.
+  app.post("/welcome-config", async (req, res) => {
+    const { enabled = true, channelId, payload } = req.body;
+    if (!channelId) return res.status(400).json({ error: "Falta channelId" });
+    if (enabled && !payload) return res.status(400).json({ error: "Falta payload" });
+
+    try {
+      const channel = await client.channels.fetch(channelId).catch(() => null);
+      if (!channel) return res.status(404).json({ error: `Canal ${channelId} no encontrado` });
+      if (!channel.guild?.id) return res.status(400).json({ error: "El canal no pertenece a un servidor" });
+
+      const config = {
+        enabled: Boolean(enabled),
+        channelId,
+        payload: payload || { embeds: [] },
+        updatedAt: new Date().toISOString(),
+      };
+
+      setData("welcome", channel.guild.id, config);
+      console.log(`[API] Bienvenida guardada para ${channel.guild.name} (${channel.guild.id})`);
+      res.json({ ok: true, guildId: channel.guild.id, guildName: channel.guild.name, config });
+    } catch (err) {
+      console.error("[API /welcome-config] Error:", err.message);
       res.status(500).json({ error: err.message });
     }
   });

@@ -2,6 +2,84 @@ const { ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, MessageFlags, Em
 const { getData } = require("../Client/dbManager");
 const { handleBotAddition } = require("../Client/securityManager");
 
+function renderTemplate(value, member) {
+  if (value == null) return value;
+  return String(value)
+    .replaceAll("{user}", `<@${member.id}>`)
+    .replaceAll("{username}", member.user.username)
+    .replaceAll("{tag}", member.user.tag)
+    .replaceAll("{server}", member.guild.name)
+    .replaceAll("{guild}", member.guild.name)
+    .replaceAll("{memberCount}", String(member.guild.memberCount))
+    .replaceAll("{membercount}", String(member.guild.memberCount));
+}
+
+function normalizeColor(color) {
+  if (color == null) return undefined;
+  if (typeof color === "number") return `#${color.toString(16).padStart(6, "0")}`;
+  return color;
+}
+
+function buildEmbed(rawEmbed, member) {
+  const embed = new EmbedBuilder();
+  if (rawEmbed.title) embed.setTitle(renderTemplate(rawEmbed.title, member).slice(0, 256));
+  if (rawEmbed.url) embed.setURL(renderTemplate(rawEmbed.url, member));
+  if (rawEmbed.description) embed.setDescription(renderTemplate(rawEmbed.description, member).slice(0, 4096));
+  if (rawEmbed.color != null) embed.setColor(normalizeColor(rawEmbed.color));
+  if (rawEmbed.author?.name) {
+    embed.setAuthor({
+      name: renderTemplate(rawEmbed.author.name, member).slice(0, 256),
+      iconURL: rawEmbed.author.icon_url,
+      url: rawEmbed.author.url,
+    });
+  }
+  if (rawEmbed.footer?.text) {
+    embed.setFooter({
+      text: renderTemplate(rawEmbed.footer.text, member).slice(0, 2048),
+      iconURL: rawEmbed.footer.icon_url,
+    });
+  }
+  if (rawEmbed.thumbnail?.url) embed.setThumbnail(renderTemplate(rawEmbed.thumbnail.url, member));
+  if (rawEmbed.image?.url) embed.setImage(renderTemplate(rawEmbed.image.url, member));
+  if (rawEmbed.timestamp) embed.setTimestamp();
+  if (Array.isArray(rawEmbed.fields) && rawEmbed.fields.length > 0) {
+    embed.addFields(rawEmbed.fields.slice(0, 25).map(field => ({
+      name: renderTemplate(field.name || "\u200b", member).slice(0, 256),
+      value: renderTemplate(field.value || "\u200b", member).slice(0, 1024),
+      inline: Boolean(field.inline),
+    })));
+  }
+  return embed;
+}
+
+function buildWelcomeSendOptions(welcomeConfig, member) {
+  const payload = welcomeConfig.payload || {
+    embeds: [{
+      title: welcomeConfig.title,
+      description: welcomeConfig.description,
+      color: welcomeConfig.color,
+      footer: welcomeConfig.footer ? { text: welcomeConfig.footer } : undefined,
+      thumbnail: welcomeConfig.thumbnail ? { url: welcomeConfig.thumbnail } : undefined,
+      image: welcomeConfig.image ? { url: welcomeConfig.image } : undefined,
+      timestamp: true,
+    }],
+  };
+
+  const options = {
+    allowedMentions: { parse: ["users"], repliedUser: false },
+  };
+
+  if (payload.content) options.content = renderTemplate(payload.content, member).slice(0, 2000);
+  if (Array.isArray(payload.embeds) && payload.embeds.length > 0) {
+    options.embeds = payload.embeds
+      .filter(rawEmbed => rawEmbed && Object.keys(rawEmbed).length > 0)
+      .slice(0, 10)
+      .map(rawEmbed => buildEmbed(rawEmbed, member));
+  }
+
+  return options;
+}
+
 module.exports = {
   name: "guildMemberAdd",
   on: true,
@@ -11,9 +89,9 @@ module.exports = {
    */
   async execute(member, client) {
     console.log(`[guildMemberAdd] Nuevo miembro: ${member.user.tag} en ${member.guild.name}`);
-    
-    // Handle bot addition for anti-nuke
+
     await handleBotAddition(member.guild, member);
+
     const logsConfig = getData("logs", member.guild.id);
     if (logsConfig && logsConfig.logChannelId) {
       const logChannel = member.guild.channels.cache.get(logsConfig.logChannelId);
@@ -21,28 +99,22 @@ module.exports = {
         const container = new ContainerBuilder()
           .setAccentColor(0x2ecc71)
           .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent("## ✅ Miembro Unido al Servidor"),
+            new TextDisplayBuilder().setContent("## Miembro unido al servidor"),
           )
           .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `Se ha unido un nuevo miembro al servidor.
-
-` +
-                `**👤 Usuario:** <@${member.id}> (${member.user.tag})
-` +
-                `**🆔 ID:** \`${member.id}\`
-` +
-                `**🕒 Cuenta creada:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:F> (<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>)
-` +
-                `**📌 Miembro número:** \`#${member.guild.memberCount}\`
-`,
+              `Se ha unido un nuevo miembro al servidor.\n\n` +
+              `**Usuario:** <@${member.id}> (${member.user.tag})\n` +
+              `**ID:** \`${member.id}\`\n` +
+              `**Cuenta creada:** <t:${Math.floor(member.user.createdTimestamp / 1000)}:F> (<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>)\n` +
+              `**Miembro numero:** \`#${member.guild.memberCount}\`\n`,
             ),
           )
           .addSeparatorComponents(new SeparatorBuilder().setDivider(true))
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `⏱️ **Fecha de ingreso:** <t:${Math.floor(Date.now() / 1000)}:F> (<t:${Math.floor(Date.now() / 1000)}:R>)`,
+              `**Fecha de ingreso:** <t:${Math.floor(Date.now() / 1000)}:F> (<t:${Math.floor(Date.now() / 1000)}:R>)`,
             ),
           );
 
@@ -56,58 +128,29 @@ module.exports = {
       }
     }
 
-    // PARTE 2: Enviar mensaje de bienvenida si está configurado (INDEPENDIENTE)
     const welcomeConfig = getData("welcome", member.guild.id);
-    console.log(`[guildMemberAdd WELCOME] Config obtenida:`, welcomeConfig);
-    
-    if (welcomeConfig && welcomeConfig.enabled && welcomeConfig.channelId) {
-      console.log(`[guildMemberAdd WELCOME] Bienvenida habilitada, intentando enviar...`);
-      const welcomeChannel = member.guild.channels.cache.get(welcomeConfig.channelId);
-      
-      if (!welcomeChannel) {
-        console.log(`[guildMemberAdd WELCOME] ❌ Canal no encontrado con ID: ${welcomeConfig.channelId}`);
-        return;
-      }
-      
-      console.log(`[guildMemberAdd WELCOME] ✅ Canal encontrado: ${welcomeChannel.name}`);
-      
-      const userDisplay = member.user.username;
-      const embed = new EmbedBuilder()
-        .setTitle(
-          welcomeConfig.title
-            .replace("{user}", userDisplay)
-            .replace("{guild}", member.guild.name)
-        )
-        .setDescription(
-          welcomeConfig.description
-            .replace("{user}", userDisplay)
-            .replace("{guild}", member.guild.name)
-            .replace("{membercount}", member.guild.memberCount)
-        )
-        .setColor(parseInt(welcomeConfig.color.replace('#', ''), 16) || 0x00ff00)
-        .setTimestamp();
-
-      if (welcomeConfig.footer) {
-        embed.setFooter({ text: welcomeConfig.footer });
-      }
-
-      if (welcomeConfig.thumbnail) {
-        embed.setThumbnail(welcomeConfig.thumbnail);
-      }
-
-      if (welcomeConfig.image) {
-        embed.setImage(welcomeConfig.image);
-      }
-
-      await welcomeChannel
-        .send({
-          embeds: [embed],
-          allowedMentions: { parse: ["users"], repliedUser: false },
-        })
-        .then(() => console.log(`[guildMemberAdd WELCOME] ✅ Mensaje de bienvenida enviado`))
-        .catch((error) => console.log(`[guildMemberAdd WELCOME] ❌ Error al enviar: ${error.message}`));
-    } else {
-      console.log(`[guildMemberAdd WELCOME] ❌ Bienvenida no configurada. enabled:${welcomeConfig?.enabled} channelId:${welcomeConfig?.channelId}`);
+    if (!welcomeConfig?.enabled || !welcomeConfig.channelId) {
+      console.log(`[guildMemberAdd WELCOME] Bienvenida no configurada para ${member.guild.id}`);
+      return;
     }
+
+    const welcomeChannel = member.guild.channels.cache.get(welcomeConfig.channelId)
+      || await client.channels.fetch(welcomeConfig.channelId).catch(() => null);
+
+    if (!welcomeChannel) {
+      console.log(`[guildMemberAdd WELCOME] Canal no encontrado: ${welcomeConfig.channelId}`);
+      return;
+    }
+
+    const options = buildWelcomeSendOptions(welcomeConfig, member);
+    if (!options.content && (!options.embeds || options.embeds.length === 0)) {
+      console.log("[guildMemberAdd WELCOME] Payload vacio, no se envia mensaje.");
+      return;
+    }
+
+    await welcomeChannel
+      .send(options)
+      .then(() => console.log("[guildMemberAdd WELCOME] Mensaje de bienvenida enviado"))
+      .catch((error) => console.log(`[guildMemberAdd WELCOME] Error al enviar: ${error.message}`));
   },
 };
