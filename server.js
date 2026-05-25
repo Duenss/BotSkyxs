@@ -77,7 +77,12 @@ module.exports = function startServer(client) {
       if (embed.description) discordEmbed.setDescription(String(embed.description).slice(0, 4096));
       if (embed.color)       discordEmbed.setColor(embed.color);
       if (embed.author)      discordEmbed.setAuthor({ name: String(embed.author).slice(0, 256) });
-      if (embed.footer)      discordEmbed.setFooter({ text: String(embed.footer).slice(0, 2048) });
+      if (embed.footer || embed.footerIcon) {
+        discordEmbed.setFooter({
+          text: String(embed.footer || " ").slice(0, 2048),
+          iconURL: embed.footerIcon || undefined,
+        });
+      }
       if (embed.thumbnail)   discordEmbed.setThumbnail(embed.thumbnail);
       if (embed.image)       discordEmbed.setImage(embed.image);
 
@@ -91,6 +96,17 @@ module.exports = function startServer(client) {
           secondary: ButtonStyle.Secondary,
         };
         const row = new ActionRowBuilder();
+        function parseDiscordEmoji(raw){
+          const emoji = String(raw || '').trim()
+          const full = emoji.match(/^<(a?):(\w+):(\d{10,})>$/)
+          if (full) {
+            return { id: full[3], name: full[2], animated: full[1] === 'a' }
+          }
+          const id = emoji.match(/\d{10,}/)?.[0]
+          const animated = /\.gif(?:\?|$)/i.test(emoji)
+          return id ? { id, name: 'emoji', animated } : null
+        }
+
         buttons.slice(0, 5).forEach((btn, i) => {
           const b = new ButtonBuilder().setLabel(String(btn.label || "Ticket").slice(0, 80));
           if (btn.type === "link" && btn.url) {
@@ -101,8 +117,8 @@ module.exports = function startServer(client) {
              .setCustomId(`open_ticket_${category}_${i}`);
           }
           if (btn.emoji) {
-            const emojiId = String(btn.emoji).match(/\d{10,}/)?.[0];
-            if (emojiId) b.setEmoji(emojiId);
+            const emoji = parseDiscordEmoji(btn.emoji)
+            if (emoji) b.setEmoji(emoji)
           }
           row.addComponents(b);
         });
@@ -120,8 +136,8 @@ module.exports = function startServer(client) {
             .setValue(String(opt.label || `opcion_${mi}`).toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 100) || `opcion_${mi}`);
           if (opt.description) option.setDescription(String(opt.description).slice(0, 100));
           if (opt.emoji) {
-            const emojiId = String(opt.emoji).match(/\d{10,}/)?.[0];
-            if (emojiId) option.setEmoji(emojiId);
+            const emoji = parseDiscordEmoji(opt.emoji)
+            if (emoji) option.setEmoji(emoji)
           }
           select.addOptions(option);
         });
