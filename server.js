@@ -1,6 +1,6 @@
 // server.js — Servidor HTTP para recibir instrucciones del dashboard
 const express = require("express");
-const { setData } = require("./Events/Client/dbManager");
+const { getData, setData } = require("./Events/Client/dbManager");
 
 module.exports = function startServer(client) {
   const app = express();

@@ -12,6 +12,7 @@ function autoCommitDbFile(filePath, fileName, guildId) {
   const autoSave = process.env.AUTO_SAVE_DB === "true" || process.env.AUTO_COMMIT_DB === "true";
   const token = process.env.GITHUB_TOKEN || process.env.GIT_TOKEN;
   if (!autoSave || !token) return;
+  if (!fs.existsSync(path.join(process.cwd(), ".git"))) return;
 
   try {
     const status = execSync(`git status --porcelain -- "${filePath}"`, {
@@ -39,7 +40,9 @@ function autoCommitDbFile(filePath, fileName, guildId) {
     const authRemote = remote.replace(/^https:\/\//, `https://${token}@`);
     execSync(`git push "${authRemote}" HEAD`, { stdio: "ignore" });
   } catch (error) {
-    console.error("[AUTO SAVE] No se pudo guardar la configuración en git:", error.message);
+    if (process.env.AUTO_SAVE_DB_DEBUG === "true") {
+      console.error("[AUTO SAVE] No se pudo guardar la configuración en git:", error.message);
+    }
   }
 }
 
