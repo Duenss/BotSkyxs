@@ -1,13 +1,10 @@
 const { ActivityType } = require("discord.js");
+const { getData, setData } = require("../Client/dbManager");
 require("colors");
 
 module.exports = {
   name: "clientReady",
   once: true,
-  /**
-   *
-   * @param {import("discord.js").Client} client
-   */
   async execute(client) {
     try {
       console.log("[DEBUG] Iniciando clientReady...");
@@ -17,24 +14,49 @@ module.exports = {
       await require("../../Handlers/slashHandler").loadSlash(client);
       console.log("[DEBUG] Comandos slash cargados exitosamente.");
 
+      // Cargar actividad guardada o usar la por defecto
+      const savedActivity = getData("bot_config", "global") || {};
       const estado = {
-        name: "🗣 DiscoBot v1.0 | /help",
-        type: ActivityType.Playing,
-        status: "online",
+        name: savedActivity.activityName || "🗣 DiscoBot v1.0 | /help",
+        type: ActivityType[savedActivity.activityType] ?? ActivityType.Playing,
+        status: savedActivity.status || "online",
       };
 
-      console.log("[DEBUG] Configurando estado estático...");
       client.user.setPresence({
-        activities: [
-          {
-            name: estado.name,
-            type: estado.type,
-            url: estado.url ?? null,
-          },
-        ],
+        activities: [{ name: estado.name, type: estado.type }],
         status: estado.status,
       });
-      console.log("[DEBUG] Estado estático configurado.");
+      console.log(`[DEBUG] Actividad cargada: ${estado.name}`.green);
+
+      // Recargar embeds programados al arrancar
+      const schedules = getData("schedules", "global") || {};
+      let count = 0;
+      for (const [id, s] of Object.entries(schedules)) {
+        if (!s.active) continue;
+        const ms = s.intervalMs;
+        if (!ms || ms < 60000) continue;
+        const timer = setInterval(async () => {
+          try {
+            const ch = await client.channels.fetch(s.channelId).catch(() => null);
+            if (!ch) return;
+            const { EmbedBuilder } = require("discord.js");
+            const eb = new EmbedBuilder();
+            if (s.embed.title)       eb.setTitle(s.embed.title);
+            if (s.embed.description) eb.setDescription(s.embed.description);
+            if (s.embed.color)       eb.setColor(s.embed.color);
+            if (s.embed.author)      eb.setAuthor({ name: s.embed.author });
+            if (s.embed.footer)      eb.setFooter({ text: s.embed.footer });
+            if (s.embed.thumbnail)   eb.setThumbnail(s.embed.thumbnail);
+            if (s.embed.image)       eb.setImage(s.embed.image);
+            await ch.send({ embeds: [eb] });
+          } catch {}
+        }, ms);
+        client._schedules = client._schedules || {};
+        client._schedules[id] = timer;
+        count++;
+      }
+      if (count > 0) console.log(`[SCHEDULES] ${count} embed(s) programado(s) recargados`.cyan);
+
     } catch (error) {
       console.error("[DEBUG ERROR] Error en clientReady:", error);
     }

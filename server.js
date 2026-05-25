@@ -20,9 +20,28 @@ module.exports = function startServer(client) {
     res.json({ ok: true, status: "online", bot: client.user?.tag || "conectando..." });
   });
 
+  // GET /bot-info — devuelve nombre, avatar y actividad actual del bot
+  app.get("/bot-info", (req, res) => {
+    if (!client.user) return res.status(503).json({ error: "Bot no listo" });
+    const presence = client.user.presence;
+    const activity = presence?.activities?.[0];
+    res.json({
+      ok: true,
+      name: client.user.username,
+      tag: client.user.tag,
+      avatar: client.user.displayAvatarURL({ size: 128, extension: "png" }),
+      id: client.user.id,
+      activity: activity ? {
+        name: activity.name,
+        type: activity.type, // número: 0=Playing,1=Streaming,2=Listening,3=Watching,5=Competing
+      } : null,
+      status: presence?.status || "online",
+    });
+  });
+
   // POST /send-panel
   app.post("/send-panel", async (req, res) => {
-    const { channelId, embed = {}, buttons = [], selectMenus = [] } = req.body;
+    const { channelId, embed = {}, buttons = [], selectMenus = [], staffRoleIds = [], ticketCategory = 'Tickets' } = req.body;
 
     if (!channelId) {
       return res.status(400).json({ error: "Falta channelId" });
@@ -101,6 +120,15 @@ module.exports = function startServer(client) {
 
       await channel.send({ embeds: [discordEmbed], components });
       console.log(`[API] Panel enviado al canal ${channelId}`);
+
+      // Guardar staffRoleIds y categoría en la DB del servidor
+      if (channel.guild?.id) {
+        setData("tickets", channel.guild.id, {
+          staffRoles: staffRoleIds,
+          ticketCategory,
+        });
+      }
+
       res.json({ ok: true, message: "Panel publicado correctamente en Discord" });
 
     } catch (err) {
@@ -191,6 +219,96 @@ module.exports = function startServer(client) {
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
+  });
+
+  // POST /set-activity — cambia la actividad del bot
+  app.post("/set-activity", async (req, res) => {
+    const { activityName, activityType = "Playing", status = "online" } = req.body;
+    if (!activityName) return res.status(400).json({ error: "Falta activityName" });
+    const { ActivityType } = require("discord.js");
+    const type = ActivityType[activityType] ?? ActivityType.Playing;
+    try {
+      client.user.setPresence({
+        activities: [{ name: activityName, type }],
+        status,
+      });
+      setData("bot_config", "global", { activityName, activityType, status });
+      console.log(`[API] Actividad cambiada: ${activityType} ${activityName}`);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // POST /schedule-embed — programa un embed recurrente
+  app.post("/schedule-embed", async (req, res) => {
+    const { channelId, embed = {}, intervalMs, label = "Embed programado" } = req.body;
+    if (!channelId) return res.status(400).json({ error: "Falta channelId" });
+    if (!intervalMs || intervalMs < 60000) return res.status(400).json({ error: "Intervalo mínimo: 60000ms (1 minuto)" });
+
+    try {
+      const channel = await client.channels.fetch(channelId).catch(() => null);
+      if (!channel) return res.status(404).json({ error: "Canal no encontrado" });
+
+      const id = `sched_${Date.now()}`;
+      const { EmbedBuilder } = require("discord.js");
+
+      const sendEmbed = async () => {
+        try {
+          const ch = await client.channels.fetch(channelId).catch(() => null);
+          if (!ch) return;
+          const eb = new EmbedBuilder();
+          if (embed.title)       eb.setTitle(embed.title);
+          if (embed.description) eb.setDescription(embed.description);
+          if (embed.color)       eb.setColor(embed.color);
+          if (embed.author)      eb.setAuthor({ name: embed.author });
+          if (embed.footer)      eb.setFooter({ text: embed.footer });
+          if (embed.thumbnail)   eb.setThumbnail(embed.thumbnail);
+          if (embed.image)       eb.setImage(embed.image);
+          await ch.send({ embeds: [eb] });
+        } catch {}
+      };
+
+      // Enviar inmediatamente la primera vez
+      await sendEmbed();
+
+      // Programar el intervalo
+      const timer = setInterval(sendEmbed, intervalMs);
+      client._schedules = client._schedules || {};
+      client._schedules[id] = timer;
+
+      // Guardar en DB para persistir reinicios
+      const schedules = getData("schedules", "global") || {};
+      schedules[id] = { id, label, channelId, embed, intervalMs, active: true, createdAt: new Date().toISOString() };
+      setData("schedules", "global", schedules);
+
+      console.log(`[SCHEDULE] Nuevo embed programado: ${label} cada ${intervalMs}ms`);
+      res.json({ ok: true, id, label });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // GET /schedules — lista los embeds programados
+  app.get("/schedules", (req, res) => {
+    const schedules = getData("schedules", "global") || {};
+    res.json({ ok: true, schedules: Object.values(schedules) });
+  });
+
+  // DELETE /schedule-embed/:id — detiene un embed programado
+  app.delete("/schedule-embed/:id", (req, res) => {
+    const { id } = req.params;
+    client._schedules = client._schedules || {};
+    if (client._schedules[id]) {
+      clearInterval(client._schedules[id]);
+      delete client._schedules[id];
+    }
+    const schedules = getData("schedules", "global") || {};
+    if (schedules[id]) {
+      schedules[id].active = false;
+      setData("schedules", "global", schedules);
+    }
+    res.json({ ok: true, message: "Schedule detenido" });
   });
 
   const PORT = process.env.PORT || 3000;
