@@ -17,7 +17,16 @@ module.exports = function startServer(client) {
 
   // GET /health
   app.get("/health", (req, res) => {
-    res.json({ ok: true, status: "online", bot: client.user?.tag || "conectando..." });
+    const ready = Boolean(client.user);
+    const connected = client.ws?.status === 0 && ready;
+    res.json({
+      ok: true,
+      ready,
+      status: connected ? "online" : "connecting",
+      bot: client.user?.tag || "conectando...",
+      guildCount: client.guilds?.cache?.size ?? 0,
+      websocketStatus: client.ws?.status,
+    });
   });
 
   // GET /bot-info — devuelve nombre, avatar y actividad actual del bot
@@ -31,6 +40,7 @@ module.exports = function startServer(client) {
       tag: client.user.tag,
       avatar: client.user.displayAvatarURL({ size: 128, extension: "png" }),
       id: client.user.id,
+      guildCount: client.guilds.cache.size,
       activity: activity ? {
         name: activity.name,
         type: activity.type, // número: 0=Playing,1=Streaming,2=Listening,3=Watching,5=Competing

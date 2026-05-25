@@ -2,17 +2,19 @@ const { ActivityType } = require("discord.js");
 const { getData, setData } = require("../Client/dbManager");
 require("colors");
 
+const DEBUG_LOGS = process.env.DEBUG_LOGS === "true";
+
 module.exports = {
   name: "clientReady",
   once: true,
   async execute(client) {
     try {
-      console.log("[DEBUG] Iniciando clientReady...");
+      if (DEBUG_LOGS) console.log("[DEBUG] Iniciando clientReady...");
       console.info(`Bot encendido como: ${client.user.tag}`.green.bold);
 
-      console.log("[DEBUG] Cargando comandos slash...");
+      if (DEBUG_LOGS) console.log("[DEBUG] Cargando comandos slash...");
       await require("../../Handlers/slashHandler").loadSlash(client);
-      console.log("[DEBUG] Comandos slash cargados exitosamente.");
+      if (DEBUG_LOGS) console.log("[DEBUG] Comandos slash cargados exitosamente.");
 
       // Cargar actividad guardada o usar la por defecto
       const savedActivity = getData("bot_config", "global") || {};
@@ -26,7 +28,8 @@ module.exports = {
         activities: [{ name: estado.name, type: estado.type }],
         status: estado.status,
       });
-      console.log(`[DEBUG] Actividad cargada: ${estado.name}`.green);
+      if (DEBUG_LOGS) console.log(`[DEBUG] Actividad cargada: ${estado.name}`.green);
+      console.info(`[INFO] Conectado a ${client.guilds.cache.size} servidor(es)`);
 
       // Recargar embeds programados al arrancar
       const schedules = getData("schedules", "global") || {};
