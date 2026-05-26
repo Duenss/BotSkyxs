@@ -88,6 +88,39 @@ module.exports = function startServer(client) {
 
       const components = [];
 
+      // Parsea formato de emoji de Discord: <:nombre:id>, <a:nombre:id>, URL de emoji, o solo ID.
+      function parseDiscordEmoji(raw){
+        const emoji = String(raw || '').trim()
+        const full = emoji.match(/^<(a?):(\w+):(\d{10,})>$/)
+        if (full) {
+          return { id: full[3], name: full[2], animated: full[1] === 'a' }
+        }
+        const id = emoji.match(/\d{10,}/)?.[0]
+        const animated = /\.gif(?:\?|$)/i.test(emoji)
+        const name = emoji.match(/emojis\/\d+\/?([^\/?#.]*?)(?:\?|$)/i)?.[1] || 'emoji'
+        return id ? { id, name, animated } : null
+      }
+
+      function resolveDiscordEmoji(raw){
+        const emoji = parseDiscordEmoji(raw)
+        if (!emoji) return null
+
+        if (emoji.animated || /<a:/.test(String(raw))) {
+          return emoji
+        }
+
+        const cached = client.emojis.cache.get(emoji.id)
+        if (cached) {
+          return {
+            id: emoji.id,
+            name: cached.name || emoji.name,
+            animated: cached.animated || false
+          }
+        }
+
+        return emoji
+      }
+
       if (buttons.length > 0) {
         const styleMap = {
           primary: ButtonStyle.Primary,
@@ -96,16 +129,6 @@ module.exports = function startServer(client) {
           secondary: ButtonStyle.Secondary,
         };
         const row = new ActionRowBuilder();
-        function parseDiscordEmoji(raw){
-          const emoji = String(raw || '').trim()
-          const full = emoji.match(/^<(a?):(\w+):(\d{10,})>$/)
-          if (full) {
-            return { id: full[3], name: full[2], animated: full[1] === 'a' }
-          }
-          const id = emoji.match(/\d{10,}/)?.[0]
-          const animated = /\.gif(?:\?|$)/i.test(emoji)
-          return id ? { id, name: 'emoji', animated } : null
-        }
 
         buttons.slice(0, 5).forEach((btn, i) => {
           const b = new ButtonBuilder().setLabel(String(btn.label || "Ticket").slice(0, 80));
@@ -117,7 +140,7 @@ module.exports = function startServer(client) {
              .setCustomId(`open_ticket_${category}_${i}`);
           }
           if (btn.emoji) {
-            const emoji = parseDiscordEmoji(btn.emoji)
+            const emoji = resolveDiscordEmoji(btn.emoji)
             if (emoji) b.setEmoji(emoji)
           }
           row.addComponents(b);
@@ -136,7 +159,7 @@ module.exports = function startServer(client) {
             .setValue(String(opt.label || `opcion_${mi}`).toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "").slice(0, 100) || `opcion_${mi}`);
           if (opt.description) option.setDescription(String(opt.description).slice(0, 100));
           if (opt.emoji) {
-            const emoji = parseDiscordEmoji(opt.emoji)
+            const emoji = resolveDiscordEmoji(opt.emoji)
             if (emoji) option.setEmoji(emoji)
           }
           select.addOptions(option);
