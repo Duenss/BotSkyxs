@@ -110,15 +110,11 @@ module.exports = function startServer(client) {
         }
 
         const cached = client.emojis.cache.get(emoji.id)
-        if (cached) {
-          return {
-            id: emoji.id,
-            name: cached.name || emoji.name,
-            animated: cached.animated || false
-          }
+        if (cached?.animated) {
+          return `<a:${cached.name || emoji.name}:${emoji.id}>`
         }
 
-        return emoji
+        return `<:${emoji.name}:${emoji.id}>`
       }
 
       function normalizeCustomEmojiMarkup(text){
