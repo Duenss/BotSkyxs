@@ -74,12 +74,12 @@ module.exports = function startServer(client) {
 
       const discordEmbed = new EmbedBuilder();
       if (embed.title)       discordEmbed.setTitle(String(embed.title).slice(0, 256));
-      if (embed.description) discordEmbed.setDescription(String(embed.description).slice(0, 4096));
+      if (embed.description) discordEmbed.setDescription(normalizeCustomEmojiMarkup(String(embed.description)).slice(0, 4096));
       if (embed.color)       discordEmbed.setColor(embed.color);
-      if (embed.author)      discordEmbed.setAuthor({ name: String(embed.author).slice(0, 256) });
+      if (embed.author)      discordEmbed.setAuthor({ name: normalizeCustomEmojiMarkup(String(embed.author)).slice(0, 256) });
       if (embed.footer || embed.footerIcon) {
         discordEmbed.setFooter({
-          text: String(embed.footer || " ").slice(0, 2048),
+          text: normalizeCustomEmojiMarkup(String(embed.footer || " ")).slice(0, 2048),
           iconURL: embed.footerIcon || undefined,
         });
       }
@@ -119,6 +119,17 @@ module.exports = function startServer(client) {
         }
 
         return emoji
+      }
+
+      function normalizeCustomEmojiMarkup(text){
+        if (typeof text !== 'string' || !text.includes('<:')) return text
+        return text.replace(/<a?:(\w+):(\d{10,})>/g, (match, name, id) => {
+          const cached = client.emojis.cache.get(id)
+          if (cached?.animated) {
+            return `<a:${name}:${id}>`
+          }
+          return `<:${name}:${id}>`
+        })
       }
 
       if (buttons.length > 0) {
