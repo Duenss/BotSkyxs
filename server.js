@@ -73,7 +73,7 @@ module.exports = function startServer(client) {
       }
 
       const discordEmbed = new EmbedBuilder();
-      if (embed.title)       discordEmbed.setTitle(String(embed.title).slice(0, 256));
+      if (embed.title)       discordEmbed.setTitle(normalizeCustomEmojiMarkup(String(embed.title)).slice(0, 256));
       if (embed.description) discordEmbed.setDescription(normalizeCustomEmojiMarkup(String(embed.description)).slice(0, 4096));
       if (embed.color)       discordEmbed.setColor(embed.color);
       if (embed.author)      discordEmbed.setAuthor({ name: normalizeCustomEmojiMarkup(String(embed.author)).slice(0, 256) });
