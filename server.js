@@ -91,6 +91,12 @@ module.exports = function startServer(client) {
       // Parsea formato de emoji de Discord: <:nombre:id>, <a:nombre:id>, URL de emoji, o solo ID.
       function parseDiscordEmoji(raw){
         const emoji = String(raw || '').trim()
+        
+        // Si es URL de emoji CDN, retorna como URL
+        if (emoji.includes('cdn.discordapp.com') && emoji.includes('emojis')) {
+          return { url: emoji, isUrl: true }
+        }
+        
         const full = emoji.match(/^<(a?):(\w+):(\d{10,})>$/)
         if (full) {
           return { id: full[3], name: full[2], animated: full[1] === 'a' }
@@ -105,8 +111,13 @@ module.exports = function startServer(client) {
         const emoji = parseDiscordEmoji(raw)
         if (!emoji) return null
 
+        // Si es URL, retorna la URL directamente
+        if (emoji.isUrl) {
+          return emoji.url
+        }
+
         if (emoji.animated || /<a:/.test(String(raw))) {
-          return emoji
+          return `<a:${emoji.name}:${emoji.id}>`
         }
 
         const cached = client.emojis.cache.get(emoji.id)
