@@ -384,10 +384,6 @@ module.exports = function startServer(client) {
 
   // POST /antinuke-config — guarda config completa desde el dashboard
   app.post("/antinuke-config", (req, res) => {
-    const key = req.headers["x-api-key"];
-    if (process.env.KEY && key !== process.env.KEY) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
     const { guildId, config } = req.body;
     if (!guildId || !config) return res.status(400).json({ error: "Falta guildId o config" });
     try {
@@ -401,20 +397,12 @@ module.exports = function startServer(client) {
 
   // GET /antinuke-config/:guildId — obtiene config actual del bot
   app.get("/antinuke-config/:guildId", (req, res) => {
-    const key = req.headers["x-api-key"];
-    if (process.env.KEY && key !== process.env.KEY) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
     const config = getData("antinuke", req.params.guildId);
     res.json({ ok: true, config: config || null });
   });
 
   // GET /antinuke-logs/:guildId — últimos eventos de seguridad registrados
   app.get("/antinuke-logs/:guildId", (req, res) => {
-    const key = req.headers["x-api-key"];
-    if (process.env.KEY && key !== process.env.KEY) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
     try {
       const logsPath = require("path").join(process.cwd(), "Database", "security_logs.json");
       if (!require("fs").existsSync(logsPath)) return res.json({ ok: true, logs: [] });
@@ -428,10 +416,6 @@ module.exports = function startServer(client) {
 
   // POST /set-logs — configura canal de logs desde el dashboard
   app.post("/set-logs", (req, res) => {
-    const key = req.headers["x-api-key"];
-    if (process.env.KEY && key !== process.env.KEY) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
     const { guildId, channelId } = req.body;
     if (!guildId || !channelId) return res.status(400).json({ error: "Falta guildId o channelId" });
     setData("logs", guildId, { logChannelId: channelId });
