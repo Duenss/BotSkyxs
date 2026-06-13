@@ -423,6 +423,26 @@ module.exports = function startServer(client) {
     res.json({ ok: true });
   });
 
+  // GET /emoji-proxy/:id — proxy para emojis animados de Discord (evita CORS/hotlink)
+  app.get("/emoji-proxy/:id", async (req, res) => {
+    const { id } = req.params;
+    const animated = req.query.animated === '1';
+    const ext = animated ? 'gif' : 'webp';
+    const url = `https://cdn.discordapp.com/emojis/${id}.${ext}?size=48&quality=lossless`;
+    try {
+      const https = require('https');
+      https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://discord.com/' } }, (upstream) => {
+        if (upstream.statusCode !== 200) return res.status(404).send('not found');
+        res.setHeader('Content-Type', animated ? 'image/gif' : 'image/webp');
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        upstream.pipe(res);
+      }).on('error', () => res.status(500).send('proxy error'));
+    } catch (err) {
+      res.status(500).send('proxy error');
+    }
+  });
+
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {
     console.log(`[API] Servidor HTTP escuchando en puerto ${PORT}`.green);
