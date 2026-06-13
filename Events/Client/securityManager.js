@@ -24,6 +24,21 @@ function writeState(state) {
   fs.writeFileSync(storagePath, JSON.stringify(state, null, 2));
 }
 
+// Guarda un evento de seguridad en security_logs.json para el dashboard
+function logSecurityEvent(guildId, type, detail) {
+  try {
+    const logsPath = path.join(process.cwd(), "Database", "security_logs.json");
+    let all = {};
+    if (fs.existsSync(logsPath)) {
+      all = JSON.parse(fs.readFileSync(logsPath, "utf8"));
+    }
+    const guildLogs = all[guildId] || [];
+    guildLogs.push({ ts: new Date().toISOString(), type, detail });
+    all[guildId] = guildLogs.slice(-500);
+    fs.writeFileSync(logsPath, JSON.stringify(all, null, 2));
+  } catch {}
+}
+
 function getConfig(guildId) {
   const config = getData("antinuke", guildId) || {};
   return {
@@ -176,6 +191,7 @@ async function handleSecurityAction(guild, executor, action, target) {
       `**Resultado:** ${punished ? "Usuario sancionado automáticamente." : "No se pudo sancionar automáticamente."}`;
 
     sendProtectionReport(guild, "AntiNuke activado", description);
+    logSecurityEvent(guild.id, "antinuke", `${action} por ${executor.id} (${executor.tag || executor.id}) — objetivo: ${target} — sancionado: ${punished}`);
 
     guildState.actions = guildState.actions.filter(
       (entry) => entry.executorId !== executor.id,
@@ -229,6 +245,7 @@ async function handleSpamDetection(guild, message) {
       `**Resultado:** ${punished ? "Usuario sancionado automáticamente." : "No se pudo sancionar automáticamente."}`;
 
     sendProtectionReport(guild, "Spam detectado", description);
+    logSecurityEvent(guild.id, "spam", `Spam de ${message.author.id} (${message.author.tag}) en #${message.channel.name} — sancionado: ${punished}`);
 
     // Delete the spam message
     try {
@@ -262,6 +279,7 @@ async function handleBotAddition(guild, member) {
       `**Resultado:** ${punished ? "Bot baneado." : "No se pudo banear."}`;
 
     sendProtectionReport(guild, "Bot sospechoso", description);
+    logSecurityEvent(guild.id, "antibot", `Bot no autorizado: ${member.id} (${member.user?.tag || member.id})`);
   }
 }
 
@@ -275,6 +293,7 @@ async function handleVanityChange(guild, oldGuild, newGuild) {
   try {
     await guild.edit({ vanityURLCode: oldGuild.vanityURLCode });
     sendProtectionReport(guild, "Cambio de Vanity bloqueado", "Se intentó cambiar la URL personalizada del servidor. Acción revertida.");
+    logSecurityEvent(guild.id, "antivanity", `Cambio de vanity bloqueado y revertido a: ${oldGuild.vanityURLCode}`);
   } catch {}
 }
 
@@ -284,4 +303,6 @@ module.exports = {
   handleBotAddition,
   handleVanityChange,
   getConfig,
-  isWhitelisted,};
+  isWhitelisted,
+  logSecurityEvent,
+};
