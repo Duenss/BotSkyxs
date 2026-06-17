@@ -248,7 +248,7 @@ module.exports = function startServer(client) {
 
   // POST /welcome-config — guarda el mensaje automatico de bienvenida.
   app.post("/welcome-config", async (req, res) => {
-    const { enabled = true, channelId, payload } = req.body;
+    const { enabled = true, channelId, payload, humanRoleId, botRoleId, welcomeBots = true, sendDm = false } = req.body;
     if (!channelId) return res.status(400).json({ error: "Falta channelId" });
     if (enabled && !payload) return res.status(400).json({ error: "Falta payload" });
 
@@ -261,11 +261,15 @@ module.exports = function startServer(client) {
         enabled: Boolean(enabled),
         channelId,
         payload: payload || { embeds: [] },
+        humanRoleId: humanRoleId || null,   // ID del rol que se asigna a humanos
+        botRoleId:   botRoleId   || null,   // ID del rol que se asigna a bots
+        welcomeBots: Boolean(welcomeBots),   // si true, también enviar bienvenida a bots
+        sendDm:      Boolean(sendDm),
         updatedAt: new Date().toISOString(),
       };
 
       setData("welcome", channel.guild.id, config);
-      console.log(`[API] Bienvenida guardada para ${channel.guild.name} (${channel.guild.id})`);
+      console.log(`[API] Bienvenida guardada para ${channel.guild.name} (${channel.guild.id}) | humanRole: ${humanRoleId || '—'} | botRole: ${botRoleId || '—'}`);
       res.json({ ok: true, guildId: channel.guild.id, guildName: channel.guild.name, config });
     } catch (err) {
       console.error("[API /welcome-config] Error:", err.message);
@@ -290,9 +294,24 @@ module.exports = function startServer(client) {
     }
   });
 
+  // POST /set-username — cambia el username del bot
+  app.post("/set-username", async (req, res) => {
+    const { username } = req.body;
+    if (!username || username.trim().length < 2 || username.trim().length > 32) {
+      return res.status(400).json({ error: "Username inválido (2–32 caracteres)." });
+    }
+    try {
+      await client.user.setUsername(username.trim());
+      console.log(`[API] Username del bot cambiado a: ${username.trim()}`);
+      res.json({ ok: true, username: client.user.username });
+    } catch (err) {
+      console.error("[API /set-username] Error:", err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // POST /set-activity — cambia la actividad del bot
-  app.post("/set-activity", async (req, res) => {
-    const { activityName, activityType = "Playing", status = "online" } = req.body;
+  app.post("/set-activity", async (req, res) => {    const { activityName, activityType = "Playing", status = "online" } = req.body;
     if (!activityName) return res.status(400).json({ error: "Falta activityName" });
     const { ActivityType } = require("discord.js");
     const type = ActivityType[activityType] ?? ActivityType.Playing;
@@ -422,6 +441,273 @@ module.exports = function startServer(client) {
     console.log(`[SECURITY] Canal de logs configurado: ${channelId} para guild ${guildId}`);
     res.json({ ok: true });
   });
+
+  // POST /setup-leave — configura el sistema de despedida desde el dashboard
+  app.post("/setup-leave", (req, res) => {
+    const { guildId, channelId, title, description, color, footer, enabled } = req.body;
+    if (!guildId) return res.status(400).json({ error: "Falta guildId" });
+    setData("leave", guildId, { enabled: enabled !== false, channelId, title, description, color: color || "#ff0000", footer: footer || null });
+    console.log(`[API] Setup-leave guardado para guild ${guildId}`);
+    res.json({ ok: true });
+  });
+
+  // POST /setup-boost — configura avisos de boost desde el dashboard
+  app.post("/setup-boost", (req, res) => {
+    const { guildId, channelId, title, description, color, footer, enabled } = req.body;
+    if (!guildId) return res.status(400).json({ error: "Falta guildId" });
+    setData("boost", guildId, { enabled: enabled !== false, channelId, title, description, color: color || "#ff73fa", footer: footer || null });
+    console.log(`[API] Setup-boost guardado para guild ${guildId}`);
+    res.json({ ok: true });
+  });
+
+  // GET /setup-status/:guildId — devuelve el estado de todos los módulos del servidor
+  app.get("/setup-status/:guildId", (req, res) => {
+    const { guildId } = req.params;
+    res.json({
+      ok: true,
+      logs: getData("logs", guildId) || null,
+      welcome: getData("welcome", guildId) || null,
+      leave: getData("leave", guildId) || null,
+      boost: getData("boost", guildId) || null,
+      tickets: getData("tickets", guildId) || null,
+      antinuke: getData("antinuke", guildId) || null,
+    });
+  });
+
+  // ── Registrar el handler de guildMemberAdd para bienvenidas + roles automáticos ──
+  // Este listener se registra una sola vez al iniciar el servidor.
+  if (!client._welcomeHandlerRegistered) {
+    client._welcomeHandlerRegistered = true;
+
+    client.on("guildMemberAdd", async (member) => {
+      const guildId = member.guild.id;
+      const config = getData("welcome", guildId);
+      if (!config || !config.enabled) return;
+
+      const isBot = member.user.bot;
+
+      // ── Asignar rol automático ──────────────────────────────────
+      try {
+        const roleId = isBot ? config.botRoleId : config.humanRoleId;
+        if (roleId) {
+          const role = member.guild.roles.cache.get(roleId) || await member.guild.roles.fetch(roleId).catch(() => null);
+          if (role) {
+            await member.roles.add(role, "Rol automático asignado por DashDash");
+            console.log(`[WELCOME] Rol ${role.name} asignado a ${member.user.tag} (${isBot ? 'bot' : 'humano'})`);
+          }
+        }
+      } catch (err) {
+        console.error(`[WELCOME] Error asignando rol: ${err.message}`);
+      }
+
+      // ── Enviar mensaje de bienvenida ────────────────────────────
+      // Si es un bot y welcomeBots está desactivado, no enviar mensaje
+      if (isBot && !config.welcomeBots) return;
+
+      try {
+        const channel = member.guild.channels.cache.get(config.channelId)
+          || await client.channels.fetch(config.channelId).catch(() => null);
+        if (!channel || !channel.isTextBased()) return;
+
+        const payload = config.payload || {};
+        const sendOptions = {};
+
+        // Reemplazar variables {user} y {guild} en el contenido y embeds
+        const replaceVars = (text) => {
+          if (typeof text !== "string") return text;
+          return text
+            .replace(/\{user\}/gi, `<@${member.user.id}>`)
+            .replace(/\{guild\}/gi, member.guild.name)
+            .replace(/\{memberCount\}/gi, String(member.guild.memberCount))
+            .replace(/\{username\}/gi, member.user.username);
+        };
+
+        if (payload.content) sendOptions.content = replaceVars(payload.content);
+
+        if (Array.isArray(payload.embeds) && payload.embeds.length > 0) {
+          const { EmbedBuilder } = require("discord.js");
+          sendOptions.embeds = payload.embeds.map((e) => {
+            const eb = new EmbedBuilder();
+            if (e.title)       eb.setTitle(replaceVars(e.title));
+            if (e.url)         eb.setURL(e.url);
+            if (e.description) eb.setDescription(replaceVars(e.description));
+            if (e.color != null) eb.setColor(typeof e.color === "string" ? e.color : `#${Number(e.color).toString(16).padStart(6, "0")}`);
+            if (e.author?.name) eb.setAuthor({ name: replaceVars(e.author.name), iconURL: e.author.icon_url, url: e.author.url });
+            if (e.footer?.text) eb.setFooter({ text: replaceVars(e.footer.text), iconURL: e.footer.icon_url });
+            if (e.thumbnail?.url) eb.setThumbnail(e.thumbnail.url);
+            if (e.image?.url)     eb.setImage(e.image.url);
+            if (e.timestamp)      eb.setTimestamp();
+            if (Array.isArray(e.fields)) {
+              eb.addFields(e.fields.map((f) => ({
+                name:   replaceVars(f.name  || "\u200b"),
+                value:  replaceVars(f.value || "\u200b"),
+                inline: !!f.inline,
+              })));
+            }
+            return eb;
+          });
+        }
+
+        // Si el mensaje está vacío, no enviar
+        if (!sendOptions.content && !sendOptions.embeds?.length) return;
+
+        await channel.send(sendOptions);
+        console.log(`[WELCOME] Mensaje enviado para ${member.user.tag} en ${member.guild.name}`);
+
+        // Enviar DM si está configurado (solo a humanos)
+        if (!isBot && config.sendDm) {
+          try {
+            await member.send(sendOptions);
+          } catch {} // El usuario puede tener los DMs cerrados
+        }
+      } catch (err) {
+        console.error(`[WELCOME] Error enviando mensaje: ${err.message}`);
+      }
+    });
+
+    console.log("[WELCOME] Handler de guildMemberAdd registrado.");
+  }
+
+  // ── Registrar el handler de messageCreate para anti-spam y anti-links ──
+  if (!client._securityHandlerRegistered) {
+    client._securityHandlerRegistered = true;
+
+    // Mapa de contadores de spam por usuario: { guildId_userId: { count, timestamps, warned } }
+    const spamCounters = new Map();
+
+    client.on("messageCreate", async (message) => {
+      // Ignorar mensajes del propio bot y mensajes de DM
+      if (!message.guild || message.author.bot) return;
+
+      const guildId = message.guild.id;
+      const antinuke = getData("antinuke", guildId);
+      if (!antinuke || !antinuke.enabled || !antinuke.modules?.antiSpam) return;
+
+      const userId = message.author.id;
+      const member = message.member || await message.guild.members.fetch(userId).catch(() => null);
+
+      // ── Verificar whitelist ──────────────────────────────────────
+      if (member) {
+        if (antinuke.whitelists?.users?.includes(userId)) return;
+        const memberRoles = member.roles.cache.map((r) => r.id);
+        if (antinuke.whitelists?.roles?.some((rid) => memberRoles.includes(rid))) return;
+      }
+
+      const logChannelId  = antinuke.logChannelId;
+      const maxMessages   = antinuke.maxMessages  || 5;
+      const spamWindow    = antinuke.spamWindow   || 10000;
+      const maxLinks      = antinuke.maxLinks     || 3;
+      const punishment    = antinuke.punishment   || { type: "ban", timeoutDuration: 10 };
+      const warnings      = antinuke.warnings     || { enabled: true, spamWarning: "⚠️ Hey {user}, por favor calma el ritmo.", linkWarning: "🚫 Hey {user}, no puedes enviar links.", spamWarnAt: 3 };
+
+      // ── Función para enviar alerta al canal de logs ──────────────
+      const sendSecurityLog = async (title, description, color = 0xed4245) => {
+        if (!logChannelId) return;
+        try {
+          const logChannel = message.guild.channels.cache.get(logChannelId)
+            || await client.channels.fetch(logChannelId).catch(() => null);
+          if (!logChannel?.isTextBased()) return;
+          const { EmbedBuilder } = require("discord.js");
+          const eb = new EmbedBuilder()
+            .setTitle(title)
+            .setDescription(description)
+            .setColor(color)
+            .setTimestamp()
+            .setFooter({ text: "DashDash Security" });
+          await logChannel.send({ embeds: [eb] });
+        } catch {}
+      };
+
+      // ── Función para aplicar castigo ─────────────────────────────
+      const applyPunishment = async (reason) => {
+        try {
+          if (!member) return;
+          if (punishment.type === "timeout") {
+            const durationMs = (punishment.timeoutDuration || 10) * 60 * 1000;
+            await member.timeout(durationMs, reason);
+            await sendSecurityLog(
+              "⏱ Usuario aislado (Timeout)",
+              `**Usuario:** <@${userId}> (\`${message.author.tag}\`)\n**Razón:** ${reason}\n**Duración:** ${punishment.timeoutDuration || 10} minutos`,
+              0xfee75c,
+            );
+          } else if (punishment.type === "kick") {
+            await member.kick(reason);
+            await sendSecurityLog(
+              "👢 Usuario expulsado (Kick)",
+              `**Usuario:** <@${userId}> (\`${message.author.tag}\`)\n**Razón:** ${reason}`,
+              0xf97316,
+            );
+          } else {
+            await member.ban({ reason });
+            await sendSecurityLog(
+              "🔨 Usuario baneado",
+              `**Usuario:** <@${userId}> (\`${message.author.tag}\`)\n**Razón:** ${reason}`,
+              0xed4245,
+            );
+          }
+        } catch (err) {
+          console.error(`[SECURITY] Error aplicando castigo a ${message.author.tag}: ${err.message}`);
+        }
+      };
+
+      // ── Detección de links ────────────────────────────────────────
+      const urlRegex = /(https?:\/\/|www\.)\S+/gi;
+      const linksInMsg = message.content.match(urlRegex) || [];
+
+      if (maxLinks === 0 && linksInMsg.length > 0) {
+        // Links totalmente bloqueados
+        await message.delete().catch(() => {});
+        if (warnings.enabled && warnings.linkWarning) {
+          const warningText = warnings.linkWarning.replace(/\{user\}/gi, `<@${userId}>`);
+          const warn = await message.channel.send(warningText).catch(() => null);
+          if (warn) setTimeout(() => warn.delete().catch(() => {}), 8000);
+        }
+        await sendSecurityLog(
+          "🔗 Link bloqueado",
+          `**Usuario:** <@${userId}> (\`${message.author.tag}\`)\n**Canal:** <#${message.channel.id}>\n**Contenido:** \`${message.content.slice(0, 100)}\``,
+          0xfee75c,
+        );
+        return;
+      }
+
+      // ── Detección de spam ─────────────────────────────────────────
+      const key = `${guildId}_${userId}`;
+      const now = Date.now();
+
+      if (!spamCounters.has(key)) {
+        spamCounters.set(key, { timestamps: [], warned: false });
+      }
+
+      const counter = spamCounters.get(key);
+      // Filtrar timestamps dentro de la ventana
+      counter.timestamps = counter.timestamps.filter((t) => now - t < spamWindow);
+      counter.timestamps.push(now);
+
+      const count = counter.timestamps.length;
+
+      // Aviso previo al spam
+      if (warnings.enabled && !counter.warned && count >= (warnings.spamWarnAt || 3) && count < maxMessages) {
+        counter.warned = true;
+        const warningText = (warnings.spamWarning || "⚠️ Hey {user}, unos mensajes más y serás sancionado.").replace(/\{user\}/gi, `<@${userId}>`);
+        const warn = await message.channel.send(warningText).catch(() => null);
+        if (warn) setTimeout(() => warn.delete().catch(() => {}), 10000);
+      }
+
+      // Sanción por spam
+      if (count >= maxMessages) {
+        spamCounters.delete(key); // reset contador
+        await applyPunishment(`Spam detectado: ${count} mensajes en ${spamWindow / 1000}s`);
+        // Eliminar últimos mensajes del usuario en el canal
+        try {
+          const msgs = await message.channel.messages.fetch({ limit: 20 });
+          const userMsgs = msgs.filter((m) => m.author.id === userId);
+          await message.channel.bulkDelete(userMsgs, true).catch(() => {});
+        } catch {}
+      }
+    });
+
+    console.log("[SECURITY] Handler de messageCreate (anti-spam/anti-link) registrado.");
+  }
 
   // GET /emoji-proxy/:id — proxy para emojis animados de Discord (evita CORS/hotlink)
   app.get("/emoji-proxy/:id", async (req, res) => {
