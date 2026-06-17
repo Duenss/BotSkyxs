@@ -5,6 +5,7 @@ const { getData, setData } = require("./Events/Client/dbManager");
 module.exports = function startServer(client) {
   const app = express();
   app.use(express.json());
+  const normalizeSnowflake = (value) => String(value || "").replace(/\D/g, "");
 
   // CORS — permite peticiones desde cualquier origen (dashboard web)
   app.use((req, res, next) => {
@@ -248,7 +249,10 @@ module.exports = function startServer(client) {
 
   // POST /welcome-config — guarda el mensaje automatico de bienvenida.
   app.post("/welcome-config", async (req, res) => {
-    const { enabled = true, channelId, payload, humanRoleId, botRoleId, welcomeBots = true, sendDm = false } = req.body;
+    const { enabled = true, payload, welcomeBots = true, sendDm = false } = req.body;
+    const channelId = normalizeSnowflake(req.body.channelId);
+    const humanRoleId = normalizeSnowflake(req.body.humanRoleId) || null;
+    const botRoleId = normalizeSnowflake(req.body.botRoleId) || null;
     if (!channelId) return res.status(400).json({ error: "Falta channelId" });
     if (enabled && !payload) return res.status(400).json({ error: "Falta payload" });
 
@@ -256,13 +260,27 @@ module.exports = function startServer(client) {
       const channel = await client.channels.fetch(channelId).catch(() => null);
       if (!channel) return res.status(404).json({ error: `Canal ${channelId} no encontrado` });
       if (!channel.guild?.id) return res.status(400).json({ error: "El canal no pertenece a un servidor" });
+      const warnings = [];
+      const me = channel.guild.members.me || await channel.guild.members.fetchMe().catch(() => null);
+
+      for (const [label, roleId] of [["humanos", humanRoleId], ["bots", botRoleId]]) {
+        if (!roleId) continue;
+        const role = channel.guild.roles.cache.get(roleId) || await channel.guild.roles.fetch(roleId).catch(() => null);
+        if (!role) {
+          warnings.push(`Rol de ${label} no encontrado: ${roleId}`);
+          continue;
+        }
+        if (me && !role.editable) {
+          warnings.push(`El bot no puede asignar el rol de ${label} (${role.name}). Sube el rol del bot por encima y habilita Manage Roles.`);
+        }
+      }
 
       const config = {
         enabled: Boolean(enabled),
         channelId,
         payload: payload || { embeds: [] },
-        humanRoleId: humanRoleId || null,   // ID del rol que se asigna a humanos
-        botRoleId:   botRoleId   || null,   // ID del rol que se asigna a bots
+        humanRoleId,
+        botRoleId,
         welcomeBots: Boolean(welcomeBots),   // si true, también enviar bienvenida a bots
         sendDm:      Boolean(sendDm),
         updatedAt: new Date().toISOString(),
@@ -270,7 +288,7 @@ module.exports = function startServer(client) {
 
       setData("welcome", channel.guild.id, config);
       console.log(`[API] Bienvenida guardada para ${channel.guild.name} (${channel.guild.id}) | humanRole: ${humanRoleId || '—'} | botRole: ${botRoleId || '—'}`);
-      res.json({ ok: true, guildId: channel.guild.id, guildName: channel.guild.name, config });
+      res.json({ ok: true, guildId: channel.guild.id, guildName: channel.guild.name, config, warnings });
     } catch (err) {
       console.error("[API /welcome-config] Error:", err.message);
       res.status(500).json({ error: err.message });
