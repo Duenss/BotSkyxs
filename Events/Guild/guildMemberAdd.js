@@ -134,6 +134,28 @@ module.exports = {
       return;
     }
 
+    // ── Asignar rol automático según si es humano o bot ──────────
+    const isBot = member.user.bot;
+    const roleId = isBot ? welcomeConfig.botRoleId : welcomeConfig.humanRoleId;
+    if (roleId) {
+      try {
+        const role = member.guild.roles.cache.get(roleId)
+          || await member.guild.roles.fetch(roleId).catch(() => null);
+        if (role) {
+          await member.roles.add(role, `Rol automático ${isBot ? 'bot' : 'humano'} — DashDash`);
+          console.log(`[guildMemberAdd WELCOME] Rol "${role.name}" asignado a ${member.user.tag} (${isBot ? 'bot' : 'humano'})`);
+        }
+      } catch (err) {
+        console.log(`[guildMemberAdd WELCOME] Error asignando rol: ${err.message}`);
+      }
+    }
+
+    // Si es bot y welcomeBots está desactivado, no enviar mensaje
+    if (isBot && welcomeConfig.welcomeBots === false) {
+      console.log(`[guildMemberAdd WELCOME] Bot detectado y welcomeBots=false, no se envía mensaje.`);
+      return;
+    }
+
     const welcomeChannel = member.guild.channels.cache.get(welcomeConfig.channelId)
       || await client.channels.fetch(welcomeConfig.channelId).catch(() => null);
 
