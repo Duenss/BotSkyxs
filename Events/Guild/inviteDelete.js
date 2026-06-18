@@ -16,6 +16,11 @@ module.exports = {
   async execute(invite, client) {
     console.log(`[LOG ACTIVIDAD INVITACION] 🗑️ Invitación eliminada: ${invite.code} (creada por ${invite.inviter?.tag || "Desconocido"})`);
 
+    // Eliminar del caché de invitaciones
+    client._inviteCache = client._inviteCache || {};
+    if (client._inviteCache[invite.guild?.id]) {
+      client._inviteCache[invite.guild.id].delete(invite.code);
+    }
     const config = getData("logs", invite.guild.id);
     console.log(`[LOG ACTIVIDAD INVITACION] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;

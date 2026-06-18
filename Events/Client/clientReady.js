@@ -60,6 +60,23 @@ module.exports = {
       }
       if (count > 0) console.log(`[SCHEDULES] ${count} embed(s) programado(s) recargados`.cyan);
 
+      // ── Cachear invitaciones de todos los servidores al arrancar ──
+      // Necesario para detectar qué invitación usó cada nuevo miembro
+      try {
+        client._inviteCache = {};
+        for (const [guildId, guild] of client.guilds.cache) {
+          try {
+            const invites = await guild.invites.fetch();
+            client._inviteCache[guildId] = new Map(invites.map(inv => [inv.code, { uses: inv.uses }]));
+          } catch {
+            // El bot puede no tener permiso de ver invitaciones en algún servidor
+          }
+        }
+        console.log(`[INVITES] Caché de invitaciones cargado para ${Object.keys(client._inviteCache).length} servidor(es)`.cyan);
+      } catch (err) {
+        console.error(`[INVITES] Error al cargar caché: ${err.message}`);
+      }
+
     } catch (error) {
       console.error("[DEBUG ERROR] Error en clientReady:", error);
     }

@@ -16,6 +16,11 @@ module.exports = {
   async execute(invite, client) {
     console.log(`[LOG ACTIVIDAD INVITACION] 🔗 Invitación creada por ${invite.inviter?.tag || "Desconocido"} en #${invite.channel.name}`);
 
+    // Actualizar caché de invitaciones para el contador
+    client._inviteCache = client._inviteCache || {};
+    client._inviteCache[invite.guild.id] = client._inviteCache[invite.guild.id] || new Map();
+    client._inviteCache[invite.guild.id].set(invite.code, { uses: invite.uses || 0 });
+
     const config = getData("logs", invite.guild.id);
     console.log(`[LOG ACTIVIDAD INVITACION] Config de logs: ${config ? "✅ Configurado" : "❌ No configurado"}`);
     if (!config || !config.logChannelId) return;

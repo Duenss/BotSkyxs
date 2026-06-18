@@ -174,5 +174,97 @@ module.exports = {
       .send(options)
       .then(() => console.log("[guildMemberAdd WELCOME] Mensaje de bienvenida enviado"))
       .catch((error) => console.log(`[guildMemberAdd WELCOME] Error al enviar: ${error.message}`));
+
+    // ── Contador de invitaciones ────────────────────────────────
+    // Solo para humanos
+    if (!isBot) {
+      try {
+        const counterConfig = getData("counter", member.guild.id);
+        if (counterConfig?.enabled && counterConfig.channelId) {
+          const counterChannel = member.guild.channels.cache.get(counterConfig.channelId)
+            || await client.channels.fetch(counterConfig.channelId).catch(() => null);
+
+          if (counterChannel) {
+            // Buscar la invitación usada comparando con las existentes
+            let inviterTag   = "Desconocido";
+            let inviteCode   = "N/A";
+            let inviteCount  = 0;
+            let inviterUser  = null;
+
+            try {
+              const newInvites  = await member.guild.invites.fetch();
+              const cachedInvites = client._inviteCache?.[member.guild.id] || new Map();
+
+              // Encontrar cuál invite aumentó su uses
+              for (const [code, invite] of newInvites) {
+                const cached = cachedInvites.get(code);
+                if (cached && invite.uses > cached.uses) {
+                  inviteCode  = code;
+                  inviteCount = invite.uses;
+                  inviterUser = invite.inviter;
+                  inviterTag  = invite.inviter?.tag || invite.inviter?.username || "Desconocido";
+                  break;
+                }
+              }
+
+              // Actualizar caché
+              client._inviteCache = client._inviteCache || {};
+              client._inviteCache[member.guild.id] = new Map(newInvites.map(inv => [inv.code, { uses: inv.uses }]));
+            } catch {}
+
+            // Obtener avatar del usuario (gif si animado, webp si estático)
+            const avatarUrl = member.user.displayAvatarURL({ size: 128, forceStatic: false, extension: "webp" });
+            const isAnimatedAvatar = member.user.avatar?.startsWith("a_");
+            const finalAvatarUrl = isAnimatedAvatar
+              ? member.user.displayAvatarURL({ size: 128, forceStatic: false, extension: "gif" })
+              : avatarUrl;
+
+            // Reemplazar variables
+            const replaceCounterVars = (text) => String(text || "")
+              .replace(/\{user\}/gi, `<@${member.user.id}>`)
+              .replace(/\{username\}/gi, member.user.username)
+              .replace(/\{inviter\}/gi, inviterTag)
+              .replace(/\{inviteCount\}/gi, String(inviteCount))
+              .replace(/\{inviteCode\}/gi, inviteCode);
+
+            const colorHex = counterConfig.color || "#57f287";
+            const colorInt = parseInt(colorHex.replace("#", ""), 16) || 0x57f287;
+
+            const embed = new EmbedBuilder()
+              .setTitle(replaceCounterVars(counterConfig.title))
+              .setDescription(replaceCounterVars(counterConfig.description))
+              .setColor(colorInt)
+              .setTimestamp();
+
+            if (counterConfig.footer) embed.setFooter({ text: counterConfig.footer });
+            if (counterConfig.showAvatar !== false) embed.setThumbnail(finalAvatarUrl);
+
+            await counterChannel.send({
+              embeds: [embed],
+              allowedMentions: { parse: ["users"], repliedUser: false },
+            });
+
+            console.log(`[COUNTER] Registro de invitación: ${member.user.tag} invitado por ${inviterTag} con código ${inviteCode}`);
+
+            // Guardar en DB para historial
+            const history = getData("counter_history", member.guild.id) || [];
+            history.unshift({
+              id:          `${Date.now()}_${member.id}`,
+              userId:      member.user.id,
+              userTag:     member.user.tag,
+              avatarUrl:   finalAvatarUrl,
+              inviterTag,
+              inviteCode,
+              inviteCount,
+              joinedAt:    new Date().toISOString(),
+            });
+            const { setData } = require("../Client/dbManager");
+            setData("counter_history", member.guild.id, history.slice(0, 500));
+          }
+        }
+      } catch (err) {
+        console.error(`[COUNTER] Error al registrar invitación: ${err.message}`);
+      }
+    }
   },
 };

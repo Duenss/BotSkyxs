@@ -492,6 +492,36 @@ module.exports = function startServer(client) {
     });
   });
 
+  // POST /counter-config — guarda la configuración del contador de invitaciones
+  app.post("/counter-config", (req, res) => {
+    const { guildId, channelId, enabled, title, description, color, footer, showAvatar } = req.body;
+    if (!guildId || !channelId) return res.status(400).json({ error: "Falta guildId o channelId" });
+    setData("counter", guildId, {
+      enabled:     enabled !== false,
+      channelId,
+      title:       title       || "🔗 Nueva invitación registrada",
+      description: description || "El usuario {user} fue invitado por **{inviter}**.\n\nActualmente, **{inviter}** tiene un total de **{inviteCount}** invitaciones.\n\nEl código de invitación utilizado fue: `{inviteCode}`",
+      color:       color       || "#57f287",
+      footer:      footer      || "Sistema de invitaciones",
+      showAvatar:  showAvatar !== false,
+      updatedAt:   new Date().toISOString(),
+    });
+    console.log(`[API] Contador de invitaciones configurado para guild ${guildId} → canal ${channelId}`);
+    res.json({ ok: true });
+  });
+
+  // GET /counter-config/:guildId — obtiene la config actual del contador
+  app.get("/counter-config/:guildId", (req, res) => {
+    const config = getData("counter", req.params.guildId);
+    res.json({ ok: true, config: config || null });
+  });
+
+  // GET /counter-history/:guildId — historial de ingresos por invitación
+  app.get("/counter-history/:guildId", (req, res) => {
+    const history = getData("counter_history", req.params.guildId) || [];
+    res.json({ ok: true, history: history.slice(0, 200) });
+  });
+
   // GET /emoji-proxy/:id — proxy para emojis animados de Discord (evita CORS/hotlink)
   app.get("/emoji-proxy/:id", async (req, res) => {
     const { id } = req.params;
